@@ -1,0 +1,855 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🧠 Longterm Memory Dashboard</title>
+    
+    <!-- Design System -->
+    <link rel="stylesheet" href="/static/design-tokens.css">
+    <link rel="stylesheet" href="/static/components.css">
+    <link rel="stylesheet" href="/static/utilities.css">
+    
+    <!-- Tailwind for additional utilities -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>tailwind.config = { darkMode: 'class' }</script>
+    
+    <!-- Vue.js & Fuse.js -->
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/fuse.js@7.0.0"></script>
+    
+    <style>
+        [v-cloak] { display: none; }
+        .observation-text { white-space: pre-wrap; word-break: break-word; }
+        .importance-bar { height: 4px; border-radius: var(--radius-sm); }
+        .similarity-bar { height: 6px; border-radius: var(--radius-md); }
+        
+        /* Command Palette - using design tokens */
+        .cmd-palette-overlay {
+            position: fixed; inset: 0; 
+            background: var(--color-overlay);
+            display: flex; align-items: flex-start; justify-content: center;
+            padding-top: 15vh; 
+            z-index: var(--z-modal);
+        }
+        .cmd-palette {
+            width: 100%; max-width: 600px; max-height: 60vh;
+            background: var(--color-surface); 
+            border-radius: var(--radius-xl); 
+            box-shadow: var(--shadow-2xl);
+            overflow: hidden;
+        }
+        .cmd-item { 
+            padding: var(--space-3) var(--space-4); 
+            cursor: pointer; 
+            display: flex; 
+            align-items: center; 
+            gap: var(--space-3);
+            transition: var(--transition-colors);
+            min-height: var(--touch-target-min);
+        }
+        .cmd-item:hover, .cmd-item.selected { 
+            background: var(--color-primary-subtle); 
+        }
+        
+        /* Timeline */
+        .timeline-bar { 
+            min-height: 4px; 
+            border-radius: var(--radius-sm); 
+            transition: var(--transition-transform); 
+        }
+        .timeline-bar:hover { transform: scaleY(1.5); }
+        
+        /* Insights */
+        .insight-card { 
+            transition: var(--transition-transform); 
+        }
+        .insight-card:hover { transform: translateY(-2px); }
+        
+        /* Ensure touch targets on interactive elements */
+        button, a, [role="button"] {
+            min-height: var(--touch-target-min);
+        }
+        
+        /* Focus visible for keyboard navigation */
+        :focus-visible {
+            outline: var(--focus-ring-width) solid var(--color-focus);
+            outline-offset: var(--focus-ring-offset);
+        }
+    </style>
+</head>
+<body class="bg-background min-h-screen transition-colors duration-200">
+
+<!-- Skip Link for Accessibility -->
+<a href="#main-content" class="skip-link">Skip to main content</a>
+
+<div id="app" v-cloak>
+    <!-- Command Palette (Cmd+K) -->
+    <div v-if="showCommandPalette" class="cmd-palette-overlay" @click.self="showCommandPalette = false">
+        <div class="cmd-palette">
+            <div class="p-4 border-b border-gray-200 dark:border-gray-700">
+                <input 
+                    ref="cmdInput"
+                    v-model="cmdQuery"
+                    @keydown.escape="showCommandPalette = false"
+                    @keydown.enter="executeCommand"
+                    @keydown.up.prevent="cmdIndex = Math.max(0, cmdIndex - 1)"
+                    @keydown.down.prevent="cmdIndex = Math.min(filteredCommands.length - 1, cmdIndex + 1)"
+                    type="text"
+                    placeholder="Search memories, entities, tags, or type a command..."
+                    class="w-full px-4 py-3 text-lg bg-transparent border-none outline-none text-gray-900 dark:text-white placeholder-gray-400"
+                >
+            </div>
+            <div class="max-h-96 overflow-y-auto">
+                <div v-if="cmdQuery.length === 0" class="p-2">
+                    <div class="px-3 py-2 text-xs font-semibold text-gray-500 uppercase">Quick Actions</div>
+                    <div v-for="(cmd, i) in defaultCommands" :key="cmd.id" 
+                         :class="['cmd-item', { selected: cmdIndex === i }]"
+                         @click="executeCommand(cmd)">
+                        <span class="text-xl">{{ cmd.icon }}</span>
+                        <div>
+                            <div class="text-gray-900 dark:text-white">{{ cmd.name }}</div>
+                            <div class="text-xs text-gray-500">{{ cmd.description }}</div>
+                        </div>
+                        <span v-if="cmd.shortcut" class="ml-auto text-xs text-gray-400 bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">{{ cmd.shortcut }}</span>
+                    </div>
+                </div>
+                <div v-else class="p-2">
+                    <div v-if="cmdLoading" class="px-4 py-8 text-center text-gray-500">
+                        <span class="animate-pulse">🔍 Searching...</span>
+                    </div>
+                    <div v-else-if="filteredCommands.length === 0" class="px-4 py-8 text-center text-gray-500">
+                        No results found
+                    </div>
+                    <div v-else>
+                        <div v-for="(cmd, i) in filteredCommands" :key="cmd.id"
+                             :class="['cmd-item', { selected: cmdIndex === i }]"
+                             @click="executeCommand(cmd)">
+                            <span class="text-xl">{{ cmd.icon }}</span>
+                            <div class="flex-1 min-w-0">
+                                <div class="text-gray-900 dark:text-white truncate">{{ cmd.name }}</div>
+                                <div class="text-xs text-gray-500 truncate">{{ cmd.description }}</div>
+                            </div>
+                            <span v-if="cmd.similarity" class="text-xs text-purple-500 font-mono">{{ (cmd.similarity * 100).toFixed(0) }}%</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="px-4 py-2 border-t border-gray-200 dark:border-gray-700 text-xs text-gray-500 flex gap-4">
+                <span>↑↓ Navigate</span>
+                <span>↵ Select</span>
+                <span>esc Close</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Header -->
+    <header class="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 py-3">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <span class="text-2xl">🧠</span>
+                    <h1 class="text-xl font-semibold text-gray-900 dark:text-white">Longterm Memory</h1>
+                </div>
+                <div class="flex items-center gap-3">
+                    <!-- Command Palette Trigger -->
+                    <button @click="openCommandPalette" 
+                            aria-label="Search memories (Command K)"
+                            class="flex items-center gap-2 px-3 py-1.5 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition text-sm">
+                        <span aria-hidden="true">🔍</span>
+                        <span class="hidden sm:inline">Search</span>
+                        <kbd class="hidden sm:inline ml-2 px-1.5 py-0.5 text-xs bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-200 rounded">⌘K</kbd>
+                    </button>
+                    
+                    <!-- View Tabs -->
+                    <div class="flex items-center bg-gray-100 dark:bg-gray-700 rounded-lg p-1" role="tablist" aria-label="View selection">
+                        <button @click="currentView = 'browse'" 
+                                role="tab"
+                                :aria-selected="currentView === 'browse'"
+                                :class="['px-3 py-1 rounded text-sm transition', currentView === 'browse' ? 'bg-white dark:bg-gray-600 shadow text-gray-900 dark:text-white' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300']">
+                            <span aria-hidden="true">📋</span> Browse
+                        </button>
+                        <button @click="currentView = 'timeline'" 
+                                role="tab"
+                                :aria-selected="currentView === 'timeline'"
+                                :class="['px-3 py-1 rounded text-sm transition', currentView === 'timeline' ? 'bg-white dark:bg-gray-600 shadow text-gray-900 dark:text-white' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300']">
+                            <span aria-hidden="true">📅</span> Timeline
+                        </button>
+                        <button @click="currentView = 'insights'" 
+                                role="tab"
+                                :aria-selected="currentView === 'insights'"
+                                :class="['px-3 py-1 rounded text-sm transition', currentView === 'insights' ? 'bg-white dark:bg-gray-600 shadow text-gray-900 dark:text-white' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300']">
+                            <span aria-hidden="true">💡</span> Insights
+                        </button>
+                    </div>
+                    
+                    <a href="/graph" class="px-3 py-1.5 bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300 rounded-lg hover:bg-purple-200 transition text-sm" aria-label="Open Knowledge Graph">
+                        <span aria-hidden="true">🕸️</span> Graph
+                    </a>
+                    
+                    <!-- Theme Toggle -->
+                    <div class="flex items-center gap-1 bg-gray-100 dark:bg-gray-700 rounded-lg p-1" role="group" aria-label="Theme selection">
+                        <button @click="setTheme('light')" :class="['px-2 py-1 rounded text-sm', theme === 'light' ? 'bg-white dark:bg-gray-600 shadow' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300']" aria-label="Light theme" :aria-pressed="theme === 'light'">☀️</button>
+                        <button @click="setTheme('system')" :class="['px-2 py-1 rounded text-sm', theme === 'system' ? 'bg-white dark:bg-gray-600 shadow' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300']" aria-label="System theme" :aria-pressed="theme === 'system'">💻</button>
+                        <button @click="setTheme('dark')" :class="['px-2 py-1 rounded text-sm', theme === 'dark' ? 'bg-white dark:bg-gray-600 shadow' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300']" aria-label="Dark theme" :aria-pressed="theme === 'dark'">🌙</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main id="main-content" class="max-w-7xl mx-auto px-4 py-6" role="main">
+        <!-- Stats Row -->
+        <div class="grid grid-cols-3 md:grid-cols-6 gap-3 mb-6">
+            <div class="bg-white dark:bg-gray-800 rounded-xl p-3 border border-gray-200 dark:border-gray-700">
+                <div class="text-xl font-bold text-gray-900 dark:text-white">{{ stats.observations?.toLocaleString() }}</div>
+                <div class="text-xs text-gray-500">Active</div>
+            </div>
+            <div class="bg-white dark:bg-gray-800 rounded-xl p-3 border border-gray-200 dark:border-gray-700">
+                <div class="text-xl font-bold text-gray-900 dark:text-white">{{ stats.archived?.toLocaleString() }}</div>
+                <div class="text-xs text-gray-500">Archived</div>
+            </div>
+            <div class="bg-white dark:bg-gray-800 rounded-xl p-3 border border-gray-200 dark:border-gray-700">
+                <div class="text-xl font-bold text-gray-900 dark:text-white">{{ stats.entities?.toLocaleString() }}</div>
+                <div class="text-xs text-gray-500">Entities</div>
+            </div>
+            <div class="bg-white dark:bg-gray-800 rounded-xl p-3 border border-gray-200 dark:border-gray-700">
+                <div class="text-xl font-bold text-purple-600">{{ stats.embedded?.toLocaleString() }}</div>
+                <div class="text-xs text-gray-500">Embedded</div>
+            </div>
+            <div class="bg-white dark:bg-gray-800 rounded-xl p-3 border border-gray-200 dark:border-gray-700">
+                <div class="text-xl font-bold text-amber-600">{{ stats.high_importance?.toLocaleString() }}</div>
+                <div class="text-xs text-gray-500">High Priority</div>
+            </div>
+            <div class="bg-white dark:bg-gray-800 rounded-xl p-3 border border-gray-200 dark:border-gray-700">
+                <div class="text-xl font-bold text-green-600">{{ embeddingPercent }}%</div>
+                <div class="text-xs text-gray-500">Coverage</div>
+            </div>
+        </div>
+
+        <!-- BROWSE VIEW -->
+        <div v-if="currentView === 'browse'">
+            <!-- Search Mode Toggle -->
+            <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 mb-6">
+                <div class="flex flex-wrap gap-4 items-center">
+                    <!-- Search Type Toggle -->
+                    <div class="flex items-center bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
+                        <button @click="searchMode = 'text'" 
+                                :class="['px-3 py-1.5 rounded text-sm transition', searchMode === 'text' ? 'bg-white dark:bg-gray-600 shadow font-medium text-gray-900 dark:text-white' : 'text-gray-500 dark:text-gray-400']">
+                            📝 Text Search
+                        </button>
+                        <button @click="searchMode = 'semantic'" 
+                                :class="['px-3 py-1.5 rounded text-sm transition', searchMode === 'semantic' ? 'bg-purple-500 text-white shadow font-medium' : 'text-gray-500 dark:text-gray-400']">
+                            🧠 Semantic Search
+                        </button>
+                    </div>
+                    
+                    <!-- Search Input -->
+                    <div class="flex-1 min-w-64">
+                        <input v-model="searchQuery" 
+                               @keyup.enter="performSearch"
+                               type="text" 
+                               :placeholder="searchMode === 'semantic' ? 'Describe what you\'re looking for...' : 'Search observations...'"
+                               class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
+                    </div>
+                    
+                    <button @click="performSearch" 
+                            :disabled="searching"
+                            class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 transition">
+                        {{ searching ? '🔍...' : '🔍 Search' }}
+                    </button>
+                </div>
+                
+                <!-- Filters Row -->
+                <div class="flex flex-wrap gap-3 mt-4">
+                    <select v-model="filters.type" class="px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm">
+                        <option value="">All Types</option>
+                        <option v-for="t in types" :value="t">{{ t }}</option>
+                    </select>
+                    <select v-model="filters.importance" class="px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm">
+                        <option value="">Any Importance</option>
+                        <option value="0.9">90%+</option>
+                        <option value="0.8">80%+</option>
+                        <option value="0.6">60%+</option>
+                    </select>
+                    <select v-model="filters.entity" class="px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm">
+                        <option value="">All Entities</option>
+                        <option v-for="e in topEntities" :value="e.id">{{ e.name }} ({{ e.obs_count }})</option>
+                    </select>
+                    <label class="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+                        <input type="checkbox" v-model="filters.includeArchive" class="rounded">
+                        Include Archive
+                    </label>
+                </div>
+                
+                <!-- Tag Cloud -->
+                <div class="flex flex-wrap gap-2 mt-4" v-if="tags.length">
+                    <span v-for="tag in tags.slice(0, 20)" :key="tag.tag"
+                          @click="filters.tag = filters.tag === tag.tag ? '' : tag.tag"
+                          :class="['px-2 py-1 rounded-full text-xs cursor-pointer transition',
+                                   filters.tag === tag.tag ? 'bg-purple-500 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-purple-100 dark:hover:bg-purple-900']">
+                        {{ tag.tag }} <span class="opacity-60">{{ tag.count }}</span>
+                    </span>
+                </div>
+            </div>
+
+            <!-- Results -->
+            <div class="space-y-3">
+                <!-- Semantic Results Header -->
+                <div v-if="searchMode === 'semantic' && semanticResults.length" class="text-sm text-purple-600 dark:text-purple-400 mb-2">
+                    🧠 Found {{ semanticResults.length }} semantically similar results
+                </div>
+                
+                <div v-for="obs in displayedObservations" :key="obs.id"
+                     @click="selectObservation(obs)"
+                     class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 cursor-pointer hover:border-purple-300 dark:hover:border-purple-700 transition">
+                    <div class="flex items-start gap-3">
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center gap-2 mb-2">
+                                <span v-if="obs.observation_type" class="px-2 py-0.5 bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 rounded text-xs">
+                                    {{ obs.observation_type }}
+                                </span>
+                                <span v-if="obs.entity_name" class="text-sm text-gray-500">{{ obs.entity_name }}</span>
+                                <span class="text-xs text-gray-400">{{ formatDate(obs.created_at) }}</span>
+                            </div>
+                            <p class="text-gray-700 dark:text-gray-300 text-sm line-clamp-3">{{ obs.observation_text }}</p>
+                            <div v-if="obs.tags?.length" class="flex flex-wrap gap-1 mt-2">
+                                <span v-for="tag in obs.tags.slice(0, 5)" class="px-1.5 py-0.5 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 rounded text-xs">
+                                    {{ tag }}
+                                </span>
+                            </div>
+                        </div>
+                        <div class="flex flex-col items-end gap-2">
+                            <!-- Similarity Score (for semantic search) -->
+                            <div v-if="obs.similarity" class="text-right">
+                                <div class="text-xs text-purple-600 font-mono">{{ (obs.similarity * 100).toFixed(0) }}%</div>
+                                <div class="w-16 bg-gray-200 dark:bg-gray-700 rounded-full h-1.5">
+                                    <div class="bg-purple-500 h-1.5 rounded-full" :style="{ width: (obs.similarity * 100) + '%' }"></div>
+                                </div>
+                            </div>
+                            <!-- Importance -->
+                            <div v-if="obs.importance" class="text-right">
+                                <div class="text-xs text-gray-500">{{ (obs.importance * 100).toFixed(0) }}%</div>
+                                <div class="w-12 bg-gray-200 dark:bg-gray-700 rounded-full h-1">
+                                    <div class="bg-amber-500 h-1 rounded-full" :style="{ width: (obs.importance * 100) + '%' }"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Pagination -->
+                <div v-if="!isSemanticMode && pagination.pages > 1" class="flex justify-center items-center gap-1 mt-6 flex-wrap">
+                    <!-- First page -->
+                    <button @click="pagination.page = 1" 
+                            :disabled="pagination.page === 1"
+                            class="px-2 py-1 rounded bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 disabled:opacity-30 text-sm"
+                            title="First page">⏮</button>
+                    
+                    <!-- Previous page -->
+                    <button @click="pagination.page = Math.max(1, pagination.page - 1)" 
+                            :disabled="pagination.page === 1"
+                            class="px-2 py-1 rounded bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 disabled:opacity-30 text-sm"
+                            title="Previous page">←</button>
+                    
+                    <!-- Page numbers -->
+                    <template v-for="pageNum in visiblePages" :key="pageNum">
+                        <span v-if="pageNum === '...'" class="px-2 py-1 text-gray-400">...</span>
+                        <button v-else
+                                @click="pagination.page = pageNum"
+                                :class="['px-3 py-1 rounded text-sm', pageNum === pagination.page ? 'bg-purple-500 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600']">
+                            {{ pageNum }}
+                        </button>
+                    </template>
+                    
+                    <!-- Next page -->
+                    <button @click="pagination.page = Math.min(pagination.pages, pagination.page + 1)"
+                            :disabled="pagination.page === pagination.pages"
+                            class="px-2 py-1 rounded bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 disabled:opacity-30 text-sm"
+                            title="Next page">→</button>
+                    
+                    <!-- Last page -->
+                    <button @click="pagination.page = pagination.pages" 
+                            :disabled="pagination.page === pagination.pages"
+                            class="px-2 py-1 rounded bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 disabled:opacity-30 text-sm"
+                            title="Last page">⏭</button>
+                    
+                    <!-- Page info -->
+                    <span class="ml-4 text-sm text-gray-500 dark:text-gray-400">
+                        {{ pagination.total }} memories
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <!-- TIMELINE VIEW -->
+        <div v-if="currentView === 'timeline'">
+            <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
+                <div class="flex items-center justify-between mb-6">
+                    <h2 class="text-lg font-semibold text-gray-900 dark:text-white">📅 Memory Timeline</h2>
+                    <div class="flex gap-2">
+                        <button @click="timelineGranularity = 'day'" 
+                                :class="['px-3 py-1 rounded text-sm', timelineGranularity === 'day' ? 'bg-purple-500 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200']">Day</button>
+                        <button @click="timelineGranularity = 'week'" 
+                                :class="['px-3 py-1 rounded text-sm', timelineGranularity === 'week' ? 'bg-purple-500 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200']">Week</button>
+                        <button @click="timelineGranularity = 'month'" 
+                                :class="['px-3 py-1 rounded text-sm', timelineGranularity === 'month' ? 'bg-purple-500 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200']">Month</button>
+                    </div>
+                </div>
+                
+                <!-- Timeline Bars -->
+                <div class="overflow-x-auto">
+                    <div class="flex items-end h-40 min-w-max">
+                        <div v-for="item in timeline" :key="item.period" 
+                             @click="filterByPeriod(item.period)"
+                             class="flex flex-col items-center cursor-pointer group"
+                             style="width: 48px;"
+                             :title="formatDate(item.period) + ': ' + item.count + ' memories'">
+                            <div class="timeline-bar bg-purple-500 group-hover:bg-purple-400 w-6 rounded-t"
+                                 :style="{ height: Math.max(4, item.count * 2) + 'px' }">
+                            </div>
+                            <div v-if="item.high_importance > 0" 
+                                 class="w-6 bg-amber-500 rounded-b"
+                                 :style="{ height: Math.max(2, item.high_importance * 4) + 'px' }">
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Date labels row -->
+                    <div class="flex min-w-max">
+                        <div v-for="item in timeline" :key="item.period + '_label'" 
+                             class="text-xs text-gray-400 text-center"
+                             style="width: 48px;">
+                            {{ formatShortDate(item.period) }}
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="flex items-center gap-4 mt-4 text-sm text-gray-500">
+                    <span class="flex items-center gap-1"><span class="w-3 h-3 bg-purple-500 rounded"></span> Total</span>
+                    <span class="flex items-center gap-1"><span class="w-3 h-3 bg-amber-500 rounded"></span> High Importance</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- INSIGHTS VIEW -->
+        <div v-if="currentView === 'insights'">
+            <div class="grid md:grid-cols-2 gap-6">
+                <div v-for="insight in insights" :key="insight.type" 
+                     class="insight-card bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
+                    <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">{{ insight.title }}</h3>
+                    
+                    <!-- Tag Correlations -->
+                    <div v-if="insight.type === 'tag_correlation'" class="space-y-2">
+                        <div v-for="item in insight.data" class="flex items-center justify-between">
+                            <span class="text-sm text-gray-600 dark:text-gray-400">
+                                <span class="text-purple-600">{{ item.tag1 }}</span>
+                                <span class="mx-2">↔</span>
+                                <span class="text-purple-600">{{ item.tag2 }}</span>
+                            </span>
+                            <span class="text-sm font-medium text-gray-900 dark:text-white">{{ item.co_count }}×</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Activity Pattern -->
+                    <div v-if="insight.type === 'activity_pattern'" class="flex items-end gap-2 h-32">
+                        <div v-for="item in insight.data" class="flex-1 flex flex-col items-center">
+                            <div class="bg-purple-500 w-full rounded-t" 
+                                 :style="{ height: (item.count / maxDayActivity * 100) + '%', minHeight: '4px' }"></div>
+                            <div class="text-xs text-gray-500 mt-1">{{ item.day.slice(0, 3) }}</div>
+                        </div>
+                    </div>
+                    
+                    <!-- Focus Areas -->
+                    <div v-if="insight.type === 'focus_areas'" class="space-y-3">
+                        <div v-for="(item, i) in insight.data" class="flex items-center gap-3">
+                            <span class="text-2xl">{{ ['🥇', '🥈', '🥉', '4️⃣', '5️⃣'][i] }}</span>
+                            <div class="flex-1">
+                                <div class="text-sm font-medium text-gray-900 dark:text-white">{{ item.tag }}</div>
+                                <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                                    <div class="bg-purple-500 h-2 rounded-full" :style="{ width: (item.count / insight.data[0].count * 100) + '%' }"></div>
+                                </div>
+                            </div>
+                            <span class="text-sm text-gray-500">{{ item.count }}</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Milestones -->
+                    <div v-if="insight.type === 'milestones'" class="space-y-3">
+                        <div v-for="item in insight.data" class="border-l-2 border-amber-500 pl-3">
+                            <div class="text-xs text-gray-500">{{ formatDate(item.created_at) }}</div>
+                            <div class="text-sm text-gray-700 dark:text-gray-300">{{ item.preview }}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Detail Panel -->
+    <div v-if="selectedObservation" 
+         class="fixed inset-y-0 right-0 w-full max-w-lg bg-white dark:bg-gray-800 shadow-xl z-50 overflow-y-auto">
+        <div class="sticky top-0 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 p-4 flex items-center justify-between">
+            <h3 class="font-semibold text-gray-900 dark:text-white">Observation #{{ selectedObservation.id }}</h3>
+            <button @click="selectedObservation = null" class="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">✕</button>
+        </div>
+        <div class="p-4 space-y-4">
+            <div>
+                <div class="text-xs text-gray-500 uppercase mb-1">Entity</div>
+                <div class="text-gray-900 dark:text-white">{{ selectedObservation.entity_name || 'Unknown' }}</div>
+            </div>
+            <div>
+                <div class="text-xs text-gray-500 uppercase mb-1">Type</div>
+                <span class="px-2 py-1 bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 rounded text-sm">
+                    {{ selectedObservation.observation_type || 'note' }}
+                </span>
+            </div>
+            <div>
+                <div class="text-xs text-gray-500 uppercase mb-1">Content</div>
+                <div class="text-gray-700 dark:text-gray-300 whitespace-pre-wrap text-sm">{{ selectedObservation.observation_text }}</div>
+            </div>
+            <div v-if="selectedObservation.tags?.length">
+                <div class="text-xs text-gray-500 uppercase mb-1">Tags</div>
+                <div class="flex flex-wrap gap-1">
+                    <span v-for="tag in selectedObservation.tags" class="px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded text-sm">{{ tag }}</span>
+                </div>
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <div class="text-xs text-gray-500 uppercase mb-1">Importance</div>
+                    <div class="text-lg font-semibold text-amber-600">{{ ((selectedObservation.importance || 0) * 100).toFixed(0) }}%</div>
+                </div>
+                <div>
+                    <div class="text-xs text-gray-500 uppercase mb-1">Created</div>
+                    <div class="text-sm text-gray-700 dark:text-gray-300">{{ formatDate(selectedObservation.created_at) }}</div>
+                </div>
+            </div>
+            
+            <!-- Find Similar Button -->
+            <button @click="findSimilar(selectedObservation.id)" 
+                    class="w-full mt-4 px-4 py-2 bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300 rounded-lg hover:bg-purple-200 transition">
+                🧠 Find Similar Observations
+            </button>
+        </div>
+    </div>
+
+</div>
+
+<script>
+const { createApp, ref, computed, watch, onMounted, nextTick } = Vue;
+
+createApp({
+    setup() {
+        // Theme
+        const theme = ref(localStorage.getItem('theme') || 'system');
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)');
+        const isDark = computed(() => {
+            if (theme.value === 'dark') return true;
+            if (theme.value === 'light') return false;
+            return prefersDark.matches;
+        });
+        const setTheme = (t) => { theme.value = t; localStorage.setItem('theme', t); };
+        prefersDark.addEventListener('change', () => {});
+        
+        // Apply dark class to HTML element
+        watch(isDark, (dark) => {
+            if (dark) {
+                document.documentElement.classList.add('dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+            }
+        }, { immediate: true });
+
+        // Data
+        const stats = ref({});
+        const observations = ref([]);
+        const semanticResults = ref([]);
+        const entities = ref([]);
+        const tags = ref([]);
+        const timeline = ref([]);
+        const insights = ref([]);
+        
+        // UI State
+        const currentView = ref('browse');
+        const searchMode = ref('text');
+        const searchQuery = ref('');
+        const searching = ref(false);
+        const selectedObservation = ref(null);
+        const timelineGranularity = ref('day');
+        
+        // Filters
+        const filters = ref({ type: '', importance: '', entity: '', tag: '', includeArchive: false });
+        const pagination = ref({ page: 1, pages: 1, total: 0 });
+        
+        // Command Palette
+        const showCommandPalette = ref(false);
+        const cmdQuery = ref('');
+        const cmdIndex = ref(0);
+        const cmdLoading = ref(false);
+        const cmdInput = ref(null);
+        const cmdResults = ref([]);
+        
+        const defaultCommands = [
+            { id: 'search', icon: '🔍', name: 'Search Memories', description: 'Full-text search', action: () => { searchMode.value = 'text'; showCommandPalette.value = false; }},
+            { id: 'semantic', icon: '🧠', name: 'Semantic Search', description: 'Find by meaning', action: () => { searchMode.value = 'semantic'; showCommandPalette.value = false; }},
+            { id: 'graph', icon: '🕸️', name: 'Knowledge Graph', description: 'Visual exploration', action: () => { window.location.href = '/graph'; }},
+            { id: 'timeline', icon: '📅', name: 'Timeline View', description: 'Browse by date', action: () => { currentView.value = 'timeline'; showCommandPalette.value = false; }},
+            { id: 'insights', icon: '💡', name: 'Insights', description: 'Patterns & analytics', action: () => { currentView.value = 'insights'; showCommandPalette.value = false; }},
+        ];
+        
+        const filteredCommands = computed(() => {
+            if (!cmdQuery.value) return defaultCommands;
+            return cmdResults.value;
+        });
+        
+        // Computed
+        const embeddingPercent = computed(() => {
+            if (!stats.value.observations) return 0;
+            return Math.round((stats.value.embedded / stats.value.observations) * 100);
+        });
+        
+        const topEntities = computed(() => entities.value.slice(0, 20));
+        const types = computed(() => stats.value.by_type?.map(t => t.observation_type) || []);
+        
+        const isSemanticMode = computed(() => searchMode.value === 'semantic' && semanticResults.value.length > 0);
+        
+        const displayedObservations = computed(() => {
+            return isSemanticMode.value ? semanticResults.value : observations.value;
+        });
+        
+        // Pagination: show page numbers with ellipsis for large page counts
+        const visiblePages = computed(() => {
+            const current = pagination.value.page;
+            const total = pagination.value.pages;
+            const pages = [];
+            
+            if (total <= 9) {
+                // Show all pages if 9 or fewer
+                for (let i = 1; i <= total; i++) pages.push(i);
+            } else {
+                // Always show first page
+                pages.push(1);
+                
+                if (current > 4) {
+                    pages.push('...');
+                }
+                
+                // Show pages around current
+                const start = Math.max(2, current - 2);
+                const end = Math.min(total - 1, current + 2);
+                
+                for (let i = start; i <= end; i++) {
+                    if (i > 1 && i < total) pages.push(i);
+                }
+                
+                if (current < total - 3) {
+                    pages.push('...');
+                }
+                
+                // Always show last page
+                pages.push(total);
+            }
+            
+            return pages;
+        });
+        
+        const maxDayActivity = computed(() => {
+            const activityInsight = insights.value.find(i => i.type === 'activity_pattern');
+            if (!activityInsight) return 1;
+            return Math.max(...activityInsight.data.map(d => d.count));
+        });
+
+        // Methods
+        const fetchStats = async () => {
+            const res = await fetch('/api/stats');
+            stats.value = await res.json();
+        };
+        
+        const fetchObservations = async () => {
+            const params = new URLSearchParams({
+                page: pagination.value.page,
+                per_page: 30,
+                search: searchQuery.value,
+                type: filters.value.type,
+                min_importance: filters.value.importance,
+                entity_id: filters.value.entity,
+                tag: filters.value.tag,
+                include_archive: filters.value.includeArchive
+            });
+            const res = await fetch(`/api/observations?${params}`);
+            const data = await res.json();
+            observations.value = data.observations;
+            pagination.value.pages = data.pages;
+            pagination.value.total = data.total;
+        };
+        
+        const fetchEntities = async () => {
+            const res = await fetch('/api/entities');
+            const data = await res.json();
+            entities.value = data.entities;
+        };
+        
+        const fetchTags = async () => {
+            const res = await fetch('/api/tags');
+            const data = await res.json();
+            tags.value = data.tags;
+        };
+        
+        const fetchTimeline = async () => {
+            const res = await fetch(`/api/timeline?granularity=${timelineGranularity.value}`);
+            const data = await res.json();
+            timeline.value = data.timeline.reverse();
+        };
+        
+        const fetchInsights = async () => {
+            const res = await fetch('/api/insights');
+            const data = await res.json();
+            insights.value = data.insights;
+        };
+        
+        const performSearch = async () => {
+            if (searchMode.value === 'semantic') {
+                if (!searchQuery.value.trim()) return;
+                searching.value = true;
+                try {
+                    const res = await fetch(`/api/search/semantic?q=${encodeURIComponent(searchQuery.value)}&limit=30&include_archive=${filters.value.includeArchive}`);
+                    const data = await res.json();
+                    semanticResults.value = data.results || [];
+                } catch (e) {
+                    console.error('Semantic search failed:', e);
+                }
+                searching.value = false;
+            } else {
+                semanticResults.value = [];
+                pagination.value.page = 1;
+                await fetchObservations();
+            }
+        };
+        
+        const findSimilar = async (obsId) => {
+            searching.value = true;
+            searchMode.value = 'semantic';
+            try {
+                const res = await fetch(`/api/search/similar/${obsId}?limit=20`);
+                const data = await res.json();
+                semanticResults.value = data.results || [];
+                selectedObservation.value = null;
+                searchQuery.value = `Similar to #${obsId}`;
+            } catch (e) {
+                console.error('Find similar failed:', e);
+            }
+            searching.value = false;
+        };
+        
+        const selectObservation = (obs) => { selectedObservation.value = obs; };
+        
+        const formatDate = (dateStr) => {
+            if (!dateStr) return '';
+            const d = new Date(dateStr);
+            return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+        };
+        
+        const formatShortDate = (dateStr) => {
+            if (!dateStr) return '';
+            const d = new Date(dateStr);
+            return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        };
+        
+        const filterByPeriod = (period) => {
+            currentView.value = 'browse';
+            // TODO: Add date filter
+        };
+        
+        const openCommandPalette = () => {
+            showCommandPalette.value = true;
+            cmdQuery.value = '';
+            cmdIndex.value = 0;
+            cmdResults.value = [];
+            nextTick(() => cmdInput.value?.focus());
+        };
+        
+        const executeCommand = (cmd) => {
+            const command = cmd || filteredCommands.value[cmdIndex.value];
+            if (command?.action) {
+                command.action();
+            } else if (command?.id && command.type === 'observation') {
+                selectObservation(command);
+                showCommandPalette.value = false;
+            }
+        };
+        
+        // Debounced semantic search in command palette
+        let cmdSearchTimeout;
+        watch(cmdQuery, (q) => {
+            clearTimeout(cmdSearchTimeout);
+            if (q.length < 2) {
+                cmdResults.value = [];
+                return;
+            }
+            cmdLoading.value = true;
+            cmdSearchTimeout = setTimeout(async () => {
+                try {
+                    const res = await fetch(`/api/search/semantic?q=${encodeURIComponent(q)}&limit=10`);
+                    const data = await res.json();
+                    cmdResults.value = (data.results || []).map(r => ({
+                        ...r,
+                        id: `obs-${r.id}`,
+                        type: 'observation',
+                        icon: '📝',
+                        name: r.observation_text?.slice(0, 60) + '...',
+                        description: r.entity_name || 'Observation'
+                    }));
+                } catch (e) {}
+                cmdLoading.value = false;
+            }, 300);
+        });
+        
+        // Keyboard shortcut
+        document.addEventListener('keydown', (e) => {
+            if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+                e.preventDefault();
+                openCommandPalette();
+            }
+        });
+        
+        // Watchers
+        watch([filters, () => pagination.value.page], () => {
+            if (searchMode.value === 'text') fetchObservations();
+        }, { deep: true });
+        
+        watch(timelineGranularity, fetchTimeline);
+        watch(currentView, (v) => {
+            if (v === 'timeline') fetchTimeline();
+            if (v === 'insights') fetchInsights();
+        });
+
+        // Init
+        onMounted(async () => {
+            // Check for search parameter in URL
+            const urlParams = new URLSearchParams(window.location.search);
+            const searchParam = urlParams.get('search');
+            if (searchParam) {
+                searchQuery.value = searchParam;
+            }
+            
+            await Promise.all([fetchStats(), fetchObservations(), fetchEntities(), fetchTags()]);
+        });
+
+        return {
+            theme, isDark, setTheme,
+            stats, observations, semanticResults, entities, tags, timeline, insights,
+            currentView, searchMode, searchQuery, searching, selectedObservation,
+            timelineGranularity,
+            filters, pagination,
+            showCommandPalette, cmdQuery, cmdIndex, cmdLoading, cmdInput, cmdResults,
+            defaultCommands, filteredCommands,
+            embeddingPercent, topEntities, types, isSemanticMode, displayedObservations, maxDayActivity, visiblePages,
+            fetchStats, fetchObservations, performSearch, findSimilar, selectObservation,
+            formatDate, formatShortDate, filterByPeriod,
+            openCommandPalette, executeCommand,
+            refreshData: () => { fetchStats(); fetchObservations(); }
+        };
+    }
+}).mount('#app');
+</script>
+</body>
+</html>
