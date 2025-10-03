@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "longterm-memory": {
+      "command": "uvx",
+      "args": [
+        "postgres-mcp"
+      ],
+      "env": {
+        "POSTGRES_CONNECTION_STRING": "postgresql://YOUR_USERNAME@localhost:5432/longterm_memory",
+        "SYSTEM_CONTEXT": "PostgreSQL memory for user-specific data. Query at conversation start for context. Use for: project continuity, personal info, technical history. NOT for: general knowledge, current events, documentation."
+      }
+    }
+  }
+}

@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.longtermmemory.embeddings</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>{{HOME}}/Documents/GitHub/longterm-memory-macos/venv/bin/python3</string>
+        <string>{{HOME}}/Documents/GitHub/longterm-memory-macos/scripts/ollama_embeddings.py</string>
+        <string>embed</string>
+    </array>
+
+    <key>StartCalendarInterval</key>
+    <array>
+        <dict>
+            <key>Hour</key>
+            <integer>4</integer>
+            <key>Minute</key>
+            <integer>0</integer>
+        </dict>
+        <dict>
+            <key>Hour</key>
+            <integer>16</integer>
+            <key>Minute</key>
+            <integer>0</integer>
+        </dict>
+    </array>
+
+    <key>StandardOutPath</key>
+    <string>{{HOME}}/Library/Logs/longterm-memory-embeddings.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>{{HOME}}/Library/Logs/longterm-memory-embeddings.log</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
+        <key>LONGTERM_MEMORY_DB</key>
+        <string>longterm_memory</string>
+        <key>LONGTERM_MEMORY_USER</key>
+        <string>{{USER}}</string>
+    </dict>
+
+    <key>RunAtLoad</key>
+    <false/>
+</dict>
+</plist>

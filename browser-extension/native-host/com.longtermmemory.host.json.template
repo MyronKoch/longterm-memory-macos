@@ -1,0 +1,9 @@
+{
+  "name": "com.longtermmemory.host",
+  "description": "Longterm Memory native messaging host",
+  "path": "INSTALL_PATH/browser-extension/native-host/longterm_memory_host.py",
+  "type": "stdio",
+  "allowed_origins": [
+    "chrome-extension://YOUR_EXTENSION_ID/"
+  ]
+}

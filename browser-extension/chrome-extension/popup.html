@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="UTF-8">
+  <title>Longterm Memory</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+
+<body>
+  <header>
+    <h1>
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+        <circle cx="12" cy="12" r="4" fill="currentColor"/>
+        <path d="M12 2v4M12 18v4M2 12h4M18 12h4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+      </svg>
+      Memory
+    </h1>
+    <span class="version">v2.1</span>
+  </header>
+
+  <main>
+    <!-- Page Info Card -->
+    <div class="page-info">
+      <div class="page-title" id="pageTitle">Loading...</div>
+      <div class="page-url">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+          <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+        </svg>
+        <span id="pageUrl"></span>
+      </div>
+    </div>
+
+    <!-- Notes Textarea -->
+    <div class="form-group">
+      <textarea id="content" placeholder="Add notes or context about this page..."></textarea>
+    </div>
+
+    <!-- Metadata Grid -->
+    <div class="metadata-grid">
+      <div class="form-group">
+        <label for="category">Category</label>
+        <select id="category">
+          <option value="auto">Auto-detect</option>
+          <option value="article">Article</option>
+          <option value="documentation">Documentation</option>
+          <option value="reference">Reference</option>
+          <option value="research">Research</option>
+          <option value="code">Code/Technical</option>
+          <option value="social">Social Media</option>
+          <option value="news">News</option>
+          <option value="media">Media</option>
+          <option value="personal">Personal</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>Importance</label>
+        <div class="range-container">
+          <input type="range" id="importance" min="0" max="1" step="0.1" value="0.5">
+          <span class="range-value" id="importanceValue">50%</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tags -->
+    <div class="form-group">
+      <label for="tags">Tags</label>
+      <input type="text" id="tags" placeholder="research, important, follow-up">
+      <div class="quick-tags">
+        <span class="quick-tag" data-tag="important">⭐ important</span>
+        <span class="quick-tag" data-tag="follow-up">📌 follow-up</span>
+        <span class="quick-tag" data-tag="reference">📎 reference</span>
+        <span class="quick-tag" data-tag="idea">💡 idea</span>
+      </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="actions">
+      <button class="btn-primary" id="saveBtn">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+          <polyline points="17 21 17 13 7 13 7 21"/>
+          <polyline points="7 3 7 8 15 8"/>
+        </svg>
+        Save Note
+      </button>
+      <button class="btn-secondary" id="captureBtn">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+          <polyline points="14 2 14 8 20 8"/>
+          <line x1="16" y1="13" x2="8" y2="13"/>
+          <line x1="16" y1="17" x2="8" y2="17"/>
+          <polyline points="10 9 9 9 8 9"/>
+        </svg>
+        Capture Page
+      </button>
+    </div>
+
+    <!-- Status Message -->
+    <div class="status-message" id="status"></div>
+    
+    <!-- Settings -->
+    <div class="settings-section">
+      <div class="setting-row">
+        <div class="setting-info">
+          <div class="setting-label">Page memory badge</div>
+          <div class="setting-hint">Show floating indicator on pages you've saved memories from</div>
+        </div>
+        <label class="toggle">
+          <input type="checkbox" id="showMemoryBadge">
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+    </div>
+
+    <!-- Dashboard Link -->
+    <a href="http://localhost:5555" target="_blank" class="dashboard-link" id="dashboardLink">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="3" width="7" height="7"/>
+        <rect x="14" y="3" width="7" height="7"/>
+        <rect x="14" y="14" width="7" height="7"/>
+        <rect x="3" y="14" width="7" height="7"/>
+      </svg>
+      Open Dashboard
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-left: auto;">
+        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+        <polyline points="15 3 21 3 21 9"/>
+        <line x1="10" y1="14" x2="21" y2="3"/>
+      </svg>
+    </a>
+  </main>
+
+  <script src="popup.js"></script>
+</body>
+
+</html>

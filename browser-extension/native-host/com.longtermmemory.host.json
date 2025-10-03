@@ -1,0 +1,9 @@
+{
+  "name": "com.longtermmemory.host",
+  "description": "Longterm Memory native messaging host",
+  "path": "/Users/m3/Documents/GitHub/longterm-memory-macos/browser-extension/native-host/longterm_memory_host.py",
+  "type": "stdio",
+  "allowed_origins": [
+    "chrome-extension://EXTENSION_ID_PLACEHOLDER/"
+  ]
+}

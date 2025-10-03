@@ -1,0 +1,570 @@
+/*
+ * Longterm Memory Browser Extension
+ * Liquid Glass Design System - Apple HIG Compliant
+ * 
+ * Based on Apple Human Interface Guidelines:
+ * - 8pt grid system
+ * - 44pt minimum tap targets
+ * - SF Pro typography scale
+ * - Semantic colors with dark mode
+ */
+
+:root {
+    /* Brand */
+    --brand-primary: #0A84FF;
+    --brand-primary-hover: #0077ED;
+    
+    /* Backgrounds - Apple Dark Mode */
+    --bg-base: #000000;
+    --bg-elevated: #1C1C1E;
+    --bg-secondary: #2C2C2E;
+    --bg-tertiary: #3A3A3C;
+    
+    /* Text - Apple Label Colors */
+    --text-primary: rgba(255, 255, 255, 0.95);
+    --text-secondary: rgba(255, 255, 255, 0.65);
+    --text-tertiary: rgba(255, 255, 255, 0.45);
+    --text-quaternary: rgba(255, 255, 255, 0.25);
+    
+    /* Borders & Fills */
+    --border-default: rgba(255, 255, 255, 0.12);
+    --border-subtle: rgba(255, 255, 255, 0.08);
+    --fill-primary: rgba(255, 255, 255, 0.12);
+    --fill-secondary: rgba(255, 255, 255, 0.08);
+    --fill-tertiary: rgba(255, 255, 255, 0.04);
+    
+    /* Semantic Colors */
+    --color-success: #30D158;
+    --color-error: #FF453A;
+    --color-warning: #FFD60A;
+    
+    /* Typography Scale - Apple SF Pro */
+    --text-caption2: 11px;
+    --text-caption: 12px;
+    --text-footnote: 13px;
+    --text-subhead: 15px;
+    --text-callout: 16px;
+    --text-body: 17px;
+    --text-headline: 17px;
+    --text-title3: 20px;
+    --text-title2: 22px;
+    
+    /* Spacing - 8pt Grid */
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-3: 12px;
+    --space-4: 16px;
+    --space-5: 20px;
+    --space-6: 24px;
+    --space-8: 32px;
+    --space-10: 40px;
+    
+    /* Radius */
+    --radius-sm: 6px;
+    --radius-md: 10px;
+    --radius-lg: 14px;
+    --radius-xl: 20px;
+    
+    /* Font */
+    --font-system: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, "Helvetica Neue", Arial, sans-serif;
+}
+
+/* Reset & Base */
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    width: 380px;
+    font-family: var(--font-system);
+    font-size: var(--text-body);
+    color: var(--text-primary);
+    background: var(--bg-base);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+/* ============================================
+   HEADER
+   ============================================ */
+
+header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--space-4) var(--space-5);
+    background: var(--bg-elevated);
+    border-bottom: 1px solid var(--border-subtle);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+h1 {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    font-size: var(--text-headline);
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+h1 svg {
+    width: 20px;
+    height: 20px;
+    color: var(--brand-primary);
+}
+
+.version {
+    font-size: var(--text-caption2);
+    font-weight: 500;
+    padding: 3px 8px;
+    background: var(--fill-secondary);
+    border: 1px solid var(--border-subtle);
+    border-radius: 10px;
+    color: var(--text-secondary);
+}
+
+/* ============================================
+   MAIN CONTENT
+   ============================================ */
+
+main {
+    padding: var(--space-5);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+}
+
+/* ============================================
+   PAGE INFO CARD
+   ============================================ */
+
+.page-info {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-lg);
+    padding: var(--space-4);
+}
+
+.page-title {
+    font-size: var(--text-subhead);
+    font-weight: 600;
+    line-height: 1.4;
+    margin-bottom: var(--space-1);
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    color: var(--text-primary);
+}
+
+.page-url {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    font-size: var(--text-caption);
+    color: var(--text-tertiary);
+}
+
+.page-url svg {
+    width: 12px;
+    height: 12px;
+    flex-shrink: 0;
+}
+
+.page-url span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* ============================================
+   FORM ELEMENTS
+   ============================================ */
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+}
+
+label {
+    font-size: var(--text-caption);
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+}
+
+textarea,
+input[type="text"],
+select {
+    width: 100%;
+    padding: var(--space-3);
+    font-family: var(--font-system);
+    font-size: var(--text-subhead);
+    color: var(--text-primary);
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-md);
+    transition: all 0.2s ease;
+}
+
+textarea {
+    min-height: 88px;
+    resize: vertical;
+    line-height: 1.5;
+}
+
+textarea::placeholder,
+input::placeholder {
+    color: var(--text-quaternary);
+}
+
+textarea:focus,
+input[type="text"]:focus,
+select:focus {
+    outline: none;
+    border-color: var(--brand-primary);
+    box-shadow: 0 0 0 3px rgba(10, 132, 255, 0.25);
+}
+
+select {
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='rgba(255,255,255,0.45)' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    padding-right: 36px;
+    cursor: pointer;
+}
+
+/* ============================================
+   METADATA GRID
+   ============================================ */
+
+.metadata-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-4);
+}
+
+/* ============================================
+   RANGE SLIDER
+   ============================================ */
+
+.range-container {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    height: 44px; /* Apple minimum tap target */
+}
+
+input[type="range"] {
+    flex: 1;
+    -webkit-appearance: none;
+    appearance: none;
+    height: 4px;
+    background: var(--bg-tertiary);
+    border-radius: 2px;
+    outline: none;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: var(--brand-primary);
+    cursor: pointer;
+    transition: transform 0.15s ease;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+input[type="range"]::-webkit-slider-thumb:hover {
+    transform: scale(1.1);
+}
+
+input[type="range"]::-webkit-slider-thumb:active {
+    transform: scale(0.95);
+}
+
+.range-value {
+    font-size: var(--text-subhead);
+    font-weight: 600;
+    color: var(--brand-primary);
+    min-width: 44px;
+    text-align: right;
+}
+
+/* ============================================
+   QUICK TAGS
+   ============================================ */
+
+.quick-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    margin-top: var(--space-2);
+}
+
+.quick-tag {
+    font-size: var(--text-caption);
+    font-weight: 500;
+    padding: var(--space-1) var(--space-2);
+    background: var(--fill-tertiary);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.15s ease;
+    user-select: none;
+}
+
+.quick-tag:hover {
+    background: var(--fill-primary);
+    border-color: var(--brand-primary);
+    color: var(--brand-primary);
+}
+
+.quick-tag:active {
+    transform: scale(0.95);
+}
+
+/* ============================================
+   BUTTONS
+   ============================================ */
+
+.actions {
+    display: flex;
+    gap: var(--space-2);
+    margin-top: var(--space-2);
+}
+
+button {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2);
+    min-height: 44px; /* Apple minimum tap target */
+    padding: var(--space-3) var(--space-4);
+    font-family: var(--font-system);
+    font-size: var(--text-subhead);
+    font-weight: 600;
+    border: none;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+button svg {
+    width: 16px;
+    height: 16px;
+}
+
+.btn-primary {
+    background: var(--brand-primary);
+    color: white;
+}
+
+.btn-primary:hover {
+    background: var(--brand-primary-hover);
+    transform: translateY(-1px);
+}
+
+.btn-primary:active {
+    transform: translateY(0);
+}
+
+.btn-secondary {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-default);
+    color: var(--text-secondary);
+}
+
+.btn-secondary:hover {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+}
+
+/* ============================================
+   STATUS MESSAGES
+   ============================================ */
+
+.status-message {
+    display: none;
+    padding: var(--space-3);
+    border-radius: var(--radius-md);
+    font-size: var(--text-subhead);
+    font-weight: 500;
+    text-align: center;
+    animation: slideUp 0.3s ease-out;
+}
+
+.status-message.success {
+    display: block;
+    background: rgba(48, 209, 88, 0.15);
+    color: var(--color-success);
+    border: 1px solid rgba(48, 209, 88, 0.3);
+}
+
+.status-message.error {
+    display: block;
+    background: rgba(255, 69, 58, 0.15);
+    color: var(--color-error);
+    border: 1px solid rgba(255, 69, 58, 0.3);
+}
+
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* ============================================
+   SETTINGS SECTION
+   ============================================ */
+
+.settings-section {
+    margin-top: var(--space-4);
+    padding-top: var(--space-4);
+    border-top: 1px solid var(--border-subtle);
+}
+
+.setting-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: var(--space-3);
+    min-height: 44px; /* Apple minimum tap target */
+}
+
+.setting-info {
+    flex: 1;
+}
+
+.setting-label {
+    font-size: var(--text-subhead);
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.setting-hint {
+    font-size: var(--text-caption);
+    color: var(--text-tertiary);
+    margin-top: 2px;
+}
+
+/* ============================================
+   TOGGLE SWITCH
+   ============================================ */
+
+.toggle {
+    position: relative;
+    display: inline-block;
+    width: 51px; /* Apple standard toggle width */
+    height: 31px; /* Apple standard toggle height */
+    flex-shrink: 0;
+}
+
+.toggle input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.toggle-slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: var(--bg-tertiary);
+    border-radius: 31px;
+    transition: background 0.2s ease;
+}
+
+.toggle-slider:before {
+    position: absolute;
+    content: "";
+    height: 27px;
+    width: 27px;
+    left: 2px;
+    bottom: 2px;
+    background: white;
+    border-radius: 50%;
+    transition: transform 0.2s ease;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.toggle input:checked + .toggle-slider {
+    background: var(--color-success);
+}
+
+.toggle input:checked + .toggle-slider:before {
+    transform: translateX(20px);
+}
+
+.toggle input:focus + .toggle-slider {
+    box-shadow: 0 0 0 3px rgba(10, 132, 255, 0.25);
+}
+
+/* ============================================
+   SCROLLBAR
+   ============================================ */
+
+::-webkit-scrollbar {
+    width: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--bg-tertiary);
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--text-quaternary);
+}
+
+/* ============================================
+   DASHBOARD LINK
+   ============================================ */
+
+.dashboard-link {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    margin-top: var(--space-4);
+    padding: var(--space-3) var(--space-4);
+    background: var(--fill-tertiary);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+    color: var(--text-secondary);
+    font-size: var(--text-subhead);
+    font-weight: 500;
+    text-decoration: none;
+    transition: all 0.2s ease;
+}
+
+.dashboard-link:hover {
+    background: var(--fill-secondary);
+    border-color: var(--border-default);
+    color: var(--text-primary);
+}
+
+.dashboard-link svg:first-child {
+    color: var(--brand-primary);
+}

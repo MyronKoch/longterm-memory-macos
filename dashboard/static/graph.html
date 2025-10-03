@@ -1,0 +1,1966 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Knowledge Graph - Longterm Memory</title>
+    
+    <!-- Theme initialization (prevent flash) -->
+    <script>
+        (function() {
+            const theme = localStorage.getItem('theme') || 'system';
+            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            const isDark = theme === 'dark' || (theme === 'system' && prefersDark);
+            document.documentElement.classList.add(isDark ? 'dark' : 'light');
+        })();
+    </script>
+    
+    <!-- Liquid Glass Design System -->
+    <link rel="stylesheet" href="/static/liquid-glass.css">
+    <link rel="stylesheet" href="/static/liquid-glass-components.css">
+    <link rel="stylesheet" href="/static/utilities.css">
+    
+    <!-- Three.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    
+    <!-- D3.js for force simulation -->
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    
+    <style>
+        * { box-sizing: border-box; }
+        
+        body { 
+            margin: 0; 
+            overflow: hidden;
+            background: var(--bg-base);
+        }
+        
+        #graph { 
+            width: 100vw; 
+            height: 100vh; 
+        }
+        
+        /* Logo Text - matches dashboard exactly */
+        .logo-text {
+            font-size: var(--text-lg);
+            font-weight: var(--font-semibold);
+            background: linear-gradient(135deg, var(--text-primary) 0%, var(--text-secondary) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        /* Graph-specific nav elements */
+        .nav-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            padding: 8px 14px;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            background: transparent;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            white-space: nowrap;
+        }
+        
+        .nav-btn:hover {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+        }
+        
+        .nav-btn.active {
+            background: rgba(10, 132, 255, 0.2);
+            color: rgba(10, 132, 255, 1);
+        }
+        
+        .nav-divider {
+            width: 1px;
+            height: 24px;
+            background: var(--glass-border);
+        }
+        
+        /* View Toggle (2D/3D) */
+        .view-toggle {
+            display: flex;
+            background: var(--bg-tertiary);
+            border-radius: 8px;
+            padding: 2px;
+        }
+        
+        .toggle-btn {
+            padding: 6px 12px;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-tertiary);
+            background: transparent;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+        
+        .toggle-btn:hover {
+            color: var(--text-secondary);
+        }
+        
+        .toggle-btn.active {
+            background: var(--brand-primary);
+            color: white;
+        }
+        
+        /* Stats Badge */
+        .stats-badge {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 0 12px;
+            font-size: 13px;
+            color: var(--text-tertiary);
+        }
+        
+        .stats-badge strong {
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+        
+        /* Left Panel */
+        .left-panel {
+            position: fixed;
+            top: 72px;
+            left: 20px;
+            width: 280px;
+            max-height: calc(100vh - 92px);
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            z-index: 50;
+        }
+        
+        .left-panel::-webkit-scrollbar {
+            width: 0;
+            display: none;
+        }
+        
+        .left-panel::-webkit-scrollbar-thumb {
+            background: transparent;
+        }
+        
+        /* Panel Card */
+        .panel {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+            padding: 16px;
+        }
+        
+        .panel-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+        }
+        
+        .panel-title {
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-quaternary);
+        }
+        
+        .panel-collapse {
+            background: none;
+            border: none;
+            color: var(--text-quaternary);
+            cursor: pointer;
+            padding: 4px;
+            font-size: 12px;
+        }
+        
+        .panel-content {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        
+        .panel.collapsed .panel-content {
+            display: none;
+        }
+        
+        /* Search Input */
+        .search-container {
+            position: relative;
+        }
+        
+        .search-input {
+            width: 100%;
+            height: 40px;
+            padding: 0 12px 0 36px;
+            font-size: 14px;
+            color: var(--text-primary);
+            background: var(--bg-tertiary);
+            border: 1px solid var(--glass-border);
+            border-radius: 10px;
+            outline: none;
+            transition: all 0.15s ease;
+        }
+        
+        .search-input::placeholder {
+            color: var(--text-quaternary);
+        }
+        
+        .search-input:focus {
+            border-color: rgba(10, 132, 255, 0.5);
+            background: var(--bg-tertiary);
+        }
+        
+        .search-icon {
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-quaternary);
+            pointer-events: none;
+        }
+        
+        .search-results {
+            margin-top: 8px;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+        
+        .search-result {
+            padding: 8px 10px;
+            font-size: 13px;
+            color: var(--text-secondary);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.1s;
+        }
+        
+        .search-result:hover {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+        }
+        
+        /* Control Row */
+        .control-row {
+            display: grid;
+            grid-template-columns: 80px 1fr 40px;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .control-label {
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+        
+        .control-value {
+            font-size: 13px;
+            font-weight: 600;
+            color: rgba(10, 132, 255, 1);
+            text-align: right;
+            font-variant-numeric: tabular-nums;
+        }
+        
+        /* Range Slider */
+        input[type="range"] {
+            width: 100%;
+            height: 4px;
+            -webkit-appearance: none;
+            background: var(--bg-tertiary);
+            border-radius: 2px;
+            outline: none;
+            margin: 0;
+        }
+        
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: rgba(10, 132, 255, 1);
+            cursor: pointer;
+            transition: transform 0.1s;
+        }
+        
+        input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.15);
+        }
+        
+        /* Time scrubber full width */
+        .time-scrubber {
+            width: 100%;
+            margin: 8px 0;
+        }
+        
+        /* Checkbox */
+        input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            accent-color: rgba(10, 132, 255, 1);
+            cursor: pointer;
+        }
+        
+        /* Buttons */
+        /* Theme button highlight - works in both light and dark */
+        .btn.theme-active {
+            background: var(--bg-tertiary);
+        }
+        
+        .btn-group {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        
+        /* Legend */
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+        
+        .legend-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+        
+        /* Breadcrumb */
+        .breadcrumb {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-wrap: wrap;
+            margin-top: 8px;
+        }
+        
+        .breadcrumb-item {
+            padding: 4px 10px;
+            font-size: 12px;
+            color: rgba(10, 132, 255, 1);
+            background: rgba(10, 132, 255, 0.15);
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background 0.1s;
+        }
+        
+        .breadcrumb-item:hover {
+            background: rgba(10, 132, 255, 0.25);
+        }
+        
+        .breadcrumb-item.current {
+            background: rgba(10, 132, 255, 0.3);
+            font-weight: 500;
+        }
+        
+        .breadcrumb-arrow {
+            color: var(--text-quaternary);
+            font-size: 10px;
+        }
+        
+        /* Path Info */
+        .path-info {
+            padding: 12px;
+            background: rgba(34, 197, 94, 0.1);
+            border: 1px solid rgba(34, 197, 94, 0.3);
+            border-radius: 10px;
+            margin-top: 8px;
+        }
+        
+        .path-info.error {
+            background: rgba(239, 68, 68, 0.1);
+            border-color: rgba(239, 68, 68, 0.3);
+        }
+        
+        /* Time Display */
+        .time-display {
+            text-align: center;
+            font-size: 15px;
+            font-weight: 600;
+            color: rgba(10, 132, 255, 1);
+            padding: 8px 0;
+        }
+        
+        /* Tooltip */
+        .tooltip {
+            position: fixed;
+            z-index: 200;
+            pointer-events: none;
+            background: var(--bg-elevated);
+            border: 1px solid var(--glass-border);
+            border-radius: 12px;
+            padding: 12px 16px;
+            max-width: 280px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+        }
+        
+        .tooltip-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 2px;
+        }
+        
+        .tooltip-type {
+            font-size: 12px;
+            color: var(--text-quaternary);
+            margin-bottom: 8px;
+        }
+        
+        .tooltip-stat {
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+        
+        .tooltip-hint {
+            font-size: 11px;
+            color: var(--text-quaternary);
+            margin-top: 8px;
+            padding-top: 8px;
+            border-top: 1px solid var(--bg-tertiary);
+        }
+        
+        /* Context Menu */
+        .context-menu {
+            position: fixed;
+            z-index: 1001;
+            background: var(--bg-elevated);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            border-radius: 10px;
+            padding: 6px 0;
+            min-width: 180px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+        
+        .context-menu-header {
+            padding: 8px 14px;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-primary);
+            border-bottom: 1px solid var(--glass-border);
+            margin-bottom: 4px;
+        }
+        
+        .context-menu-item {
+            padding: 8px 14px;
+            font-size: 13px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+        
+        .context-menu-item:hover {
+            background: var(--glass-border);
+        }
+        
+        /* Local Mode Badge */
+        .local-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 10px;
+            font-size: 12px;
+            font-weight: 500;
+            color: rgba(10, 132, 255, 1);
+            background: rgba(10, 132, 255, 0.15);
+            border-radius: 8px;
+        }
+        
+        /* Right Panel - Quick Stats */
+        .right-panel {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 50;
+        }
+        
+        .quick-stats {
+            display: flex;
+            gap: 12px;
+        }
+        
+        .quick-stat {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 12px;
+            padding: 12px 16px;
+            text-align: center;
+        }
+        
+        .quick-stat-value {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+        
+        .quick-stat-label {
+            font-size: 11px;
+            color: var(--text-quaternary);
+            margin-top: 2px;
+        }
+        
+        /* Hide scrollbar on body */
+        body::-webkit-scrollbar {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Top Navigation - Same as Dashboard -->
+    <nav class="nav-floating">
+        <!-- Left: Logo + Main Tabs -->
+        <div class="flex items-center gap-4">
+            <div class="flex items-center gap-2">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" style="color: var(--brand-primary)">
+                    <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.5" fill="none"/>
+                    <circle cx="12" cy="12" r="4" fill="currentColor"/>
+                    <path d="M12 2v4M12 18v4M2 12h4M18 12h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                </svg>
+                <span class="logo-text">Memory</span>
+            </div>
+            <div class="tabs">
+                <a href="/" class="tab">Browse</a>
+                <a href="/?view=timeline" class="tab">Timeline</a>
+                <a href="/?view=insights" class="tab">Insights</a>
+                <a href="/?view=archive" class="tab">Archive</a>
+                <a href="/graph" class="tab active">Graph</a>
+            </div>
+        </div>
+        
+        <!-- Center: Graph Stats & Controls -->
+        <div class="flex items-center gap-3">
+            <div class="stats-badge">
+                <span><strong id="nodeCount">0</strong> nodes</span>
+                <span>·</span>
+                <span><strong id="linkCount">0</strong> edges</span>
+            </div>
+            <div class="nav-divider"></div>
+            <button class="nav-btn" onclick="resetCamera()">Reset View</button>
+            <button class="nav-btn" onclick="shuffleLayout()">Shuffle</button>
+            <button class="nav-btn" id="autoRotateBtn" onclick="toggleAutoRotate()">Auto-Rotate</button>
+            <div class="nav-divider"></div>
+            <div class="view-toggle">
+                <button class="toggle-btn active" id="btn3D" onclick="setViewMode('3d')">3D</button>
+                <button class="toggle-btn" id="btn2D" onclick="setViewMode('2d')">2D</button>
+            </div>
+        </div>
+        
+        <!-- Right: Theme Toggle -->
+        <div class="flex items-center gap-1">
+            <button onclick="setTheme('light')" id="themeLightBtn" class="btn btn-icon btn-sm btn-ghost" aria-label="Light theme">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+            </button>
+            <button onclick="setTheme('system')" id="themeSystemBtn" class="btn btn-icon btn-sm btn-ghost" aria-label="System theme">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+            </button>
+            <button onclick="setTheme('dark')" id="themeDarkBtn" class="btn btn-icon btn-sm btn-ghost" aria-label="Dark theme">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+            </button>
+        </div>
+    </nav>
+
+    <!-- Left Control Panels -->
+    <div class="left-panel">
+        
+        <!-- Search Panel -->
+        <div class="panel">
+            <div class="panel-header">
+                <span class="panel-title">Search</span>
+            </div>
+            <div class="panel-content">
+                <div class="search-container">
+                    <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+                    <input type="text" id="nodeSearch" class="search-input" placeholder="Find entities...">
+                </div>
+                <div id="searchResults" class="search-results"></div>
+            </div>
+        </div>
+        
+        <!-- Local Mode Indicator -->
+        <div class="panel" id="localModePanel" style="display: none;">
+            <div class="panel-header">
+                <span class="panel-title">Local View</span>
+            </div>
+            <div class="panel-content">
+                <div class="local-badge">🎯 Focused Mode</div>
+                <div class="breadcrumb" id="breadcrumbs"></div>
+                <div class="btn-group" style="margin-top: 12px;">
+                    <button class="btn btn-sm" id="backToFull">Full Graph</button>
+                    <button class="btn btn-sm" id="expandNode">Expand +1</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- View Controls -->
+        <div class="panel">
+            <div class="panel-header">
+                <span class="panel-title">View</span>
+            </div>
+            <div class="panel-content">
+                <div class="control-row">
+                    <span class="control-label">Spread</span>
+                    <input type="range" id="spread" min="100" max="800" value="350">
+                    <span class="control-value" id="spreadValue">350</span>
+                </div>
+                <div class="control-row">
+                    <span class="control-label">Node Size</span>
+                    <input type="range" id="nodeSize" min="0.5" max="3" step="0.1" value="1.5">
+                    <span class="control-value" id="nodeSizeValue">1.5</span>
+                </div>
+                <div class="control-row">
+                    <span class="control-label">Link Opacity</span>
+                    <input type="range" id="linkOpacity" min="0" max="100" value="75">
+                    <span class="control-value" id="linkOpacityValue">75%</span>
+                </div>
+                <div class="control-row">
+                    <span class="control-label">Show Labels</span>
+                    <input type="checkbox" id="showLabels" checked>
+                </div>
+            </div>
+        </div>
+
+        <!-- Filters -->
+        <div class="panel">
+            <div class="panel-header">
+                <span class="panel-title">Filters</span>
+            </div>
+            <div class="panel-content">
+                <div class="control-row">
+                    <span class="control-label">Min Observations</span>
+                    <input type="range" id="minObs" min="1" max="20" value="2">
+                    <span class="control-value" id="minObsValue">2</span>
+                </div>
+                <div class="control-row">
+                    <span class="control-label">Min Connections</span>
+                    <input type="range" id="minLinks" min="0" max="10" value="0">
+                    <span class="control-value" id="minLinksValue">0</span>
+                </div>
+                <div class="control-row">
+                    <span class="control-label">Hop Distance</span>
+                    <input type="range" id="hopDistance" min="1" max="4" value="2">
+                    <span class="control-value" id="hopDistanceValue">2</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Path Finding -->
+        <div class="panel">
+            <div class="panel-header">
+                <span class="panel-title">Path Finding</span>
+            </div>
+            <div class="panel-content">
+                <p style="font-size: 12px; color: rgba(255,255,255,0.4); margin: 0 0 10px 0;">Click two nodes to find shortest path</p>
+                <div class="btn-group">
+                    <button class="btn btn-sm" id="startPath">Start Path</button>
+                    <button class="btn btn-sm" id="clearPath">Clear</button>
+                </div>
+                <div id="pathInfo" style="display: none;"></div>
+            </div>
+        </div>
+
+        <!-- Time Animation -->
+        <div class="panel">
+            <div class="panel-header">
+                <span class="panel-title">Time Travel</span>
+            </div>
+            <div class="panel-content">
+                <p style="font-size: 12px; color: rgba(255,255,255,0.4); margin: 0 0 10px 0;">Watch your knowledge grow over time</p>
+                <div class="control-row">
+                    <span class="control-label">Speed</span>
+                    <input type="range" id="animSpeed" min="1" max="10" value="5">
+                    <span class="control-value" id="animSpeedValue">5x</span>
+                </div>
+                <div id="timeDisplay" class="time-display" style="display: none;">-</div>
+                <input type="range" id="timeScrubber" min="0" max="100" value="100" class="time-scrubber" style="display: none;">
+                <div class="btn-group">
+                    <button class="btn btn-sm" id="playTimeBtn">▶ Play</button>
+                    <button class="btn btn-sm" id="resetTimeBtn">↺ Reset</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Legend -->
+        <div class="panel">
+            <div class="panel-header">
+                <span class="panel-title">Legend</span>
+            </div>
+            <div class="panel-content">
+                <div class="legend-item"><span class="legend-dot" style="background: #BF5AF2"></span> Person</div>
+                <div class="legend-item"><span class="legend-dot" style="background: #0A84FF"></span> Project</div>
+                <div class="legend-item"><span class="legend-dot" style="background: #30D158"></span> Technology</div>
+                <div class="legend-item"><span class="legend-dot" style="background: #FF9F0A"></span> Website</div>
+                <div class="legend-item"><span class="legend-dot" style="background: #8E8E93"></span> Other</div>
+            </div>
+        </div>
+        
+    </div>
+
+    <!-- Tooltip -->
+    <div id="tooltip" class="tooltip" style="display: none;">
+        <div class="tooltip-title">-</div>
+        <div class="tooltip-type">-</div>
+        <div class="tooltip-stat">-</div>
+        <div class="tooltip-hint">Click to focus · Right-click for menu</div>
+    </div>
+
+    <!-- Context Menu -->
+    <div id="contextMenu" class="context-menu" style="display: none;">
+        <div class="context-menu-header"></div>
+        <div class="context-menu-item" id="ctxViewMemories">📋 View Memories</div>
+        <div class="context-menu-item" id="ctxStartPath">🔗 Start Path From Here</div>
+    </div>
+
+    <!-- Graph Canvas -->
+    <div id="graph"></div>
+    
+    <!-- 2D Canvas (D3 force-directed) -->
+    <canvas id="graph2d" style="display: none; position: absolute; top: 0; left: 0; width: 100vw; height: 100vh;"></canvas>
+
+
+<script>
+// Three.js globals
+let scene, camera, renderer, controls;
+let allNodes = [], allLinks = [];
+let visibleNodes = [], visibleLinks = [];
+let nodeObjects = [], linkObjects = [], labelSprites = [];
+let raycaster, mouse;
+let autoRotate = false;
+let hoveredNode = null;
+
+// Theme detection
+function isDarkMode() {
+    return document.documentElement.classList.contains('dark');
+}
+
+function getThemeColors() {
+    const dark = isDarkMode();
+    return {
+        background: dark ? 0x000000 : 0xf5f5f7,
+        text: dark ? 'rgba(255, 255, 255, 0.85)' : 'rgba(0, 0, 0, 0.85)',
+        link: dark ? 'rgba(58, 58, 60, ' : 'rgba(180, 180, 185, '
+    };
+}
+
+// State
+const state = {
+    spread: 350,
+    nodeSize: 1.5,
+    linkOpacity: 0.75,
+    showLabels: true,
+    minObs: 2,
+    minLinks: 0,
+    hopDistance: 2,
+    localMode: false,
+    focusNode: null,
+    focusHistory: [],
+    pathMode: false,
+    pathStart: null,
+    pathEnd: null,
+    pathNodes: new Set(),
+    searchQuery: '',
+    timeAnimating: false,
+    timeSpeed: 5,
+    currentTime: null,
+    timeRange: null,
+    timeData: null,
+    viewMode: '3d'  // '3d' or '2d'
+};
+
+let nodeMap = {};
+
+function init() {
+    scene = new THREE.Scene();
+    scene.background = new THREE.Color(getThemeColors().background);
+    
+    camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 1, 5000);
+    camera.position.z = 600;
+    
+    renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(window.devicePixelRatio);
+    document.getElementById('graph').appendChild(renderer.domElement);
+    
+    controls = new THREE.OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
+    
+    raycaster = new THREE.Raycaster();
+    mouse = new THREE.Vector2();
+    
+    window.addEventListener('resize', onWindowResize);
+    renderer.domElement.addEventListener('mousemove', onMouseMove);
+    renderer.domElement.addEventListener('click', onMouseClick);
+    renderer.domElement.addEventListener('contextmenu', onRightClick);
+    
+    loadGraph();
+    animate();
+}
+
+function fitCameraToGraph() {
+    if (visibleNodes.length === 0 || state.viewMode === '2d') return;
+    
+    let minX = Infinity, maxX = -Infinity;
+    let minY = Infinity, maxY = -Infinity;
+    let minZ = Infinity, maxZ = -Infinity;
+    
+    visibleNodes.forEach(n => {
+        minX = Math.min(minX, n.x); maxX = Math.max(maxX, n.x);
+        minY = Math.min(minY, n.y); maxY = Math.max(maxY, n.y);
+        minZ = Math.min(minZ, n.z); maxZ = Math.max(maxZ, n.z);
+    });
+    
+    const centerX = (minX + maxX) / 2;
+    const centerY = (minY + maxY) / 2;
+    const centerZ = (minZ + maxZ) / 2;
+    
+    const maxSize = Math.max(maxX - minX, maxY - minY, maxZ - minZ);
+    const fov = camera.fov * (Math.PI / 180);
+    const distance = (maxSize / 2) / Math.tan(fov / 2) * 1.5;
+    
+    // Animate camera to new position
+    animateCameraTo(
+        { x: centerX, y: centerY, z: centerZ + distance },
+        { x: centerX, y: centerY, z: centerZ }
+    );
+}
+
+function animateCameraTo(targetPos, targetLookAt, duration = 800) {
+    const startPos = { x: camera.position.x, y: camera.position.y, z: camera.position.z };
+    const startTarget = { x: controls.target.x, y: controls.target.y, z: controls.target.z };
+    const startTime = performance.now();
+    
+    function easeOutCubic(t) {
+        return 1 - Math.pow(1 - t, 3);
+    }
+    
+    function animateStep() {
+        const elapsed = performance.now() - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        const eased = easeOutCubic(progress);
+        
+        camera.position.x = startPos.x + (targetPos.x - startPos.x) * eased;
+        camera.position.y = startPos.y + (targetPos.y - startPos.y) * eased;
+        camera.position.z = startPos.z + (targetPos.z - startPos.z) * eased;
+        
+        controls.target.x = startTarget.x + (targetLookAt.x - startTarget.x) * eased;
+        controls.target.y = startTarget.y + (targetLookAt.y - startTarget.y) * eased;
+        controls.target.z = startTarget.z + (targetLookAt.z - startTarget.z) * eased;
+        
+        controls.update();
+        
+        if (progress < 1) {
+            requestAnimationFrame(animateStep);
+        }
+    }
+    
+    animateStep();
+}
+
+// Apple system colors
+function getNodeColor(node) {
+    if (state.pathNodes.has(node.id)) return 0x30D158; // Green for path
+    const type = (node.entity_type || '').toLowerCase();
+    if (type.includes('person') || type.includes('human')) return 0xBF5AF2;  // Purple
+    if (type.includes('project') || type.includes('repo') || type.includes('software')) return 0x0A84FF;  // Blue
+    if (type.includes('tech') || type.includes('tool') || type.includes('framework')) return 0x30D158;  // Green
+    if (type.includes('website') || type.includes('web')) return 0xFF9F0A;  // Orange
+    return 0x8E8E93;  // Gray
+}
+
+function createTextSprite(text, size) {
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    const fontSize = size * 4;
+    ctx.font = `500 ${fontSize}px -apple-system, BlinkMacSystemFont, sans-serif`;
+    const metrics = ctx.measureText(text);
+    canvas.width = metrics.width + 20;
+    canvas.height = fontSize * 1.5;
+    ctx.font = `500 ${fontSize}px -apple-system, BlinkMacSystemFont, sans-serif`;
+    ctx.fillStyle = getThemeColors().text;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(text, canvas.width / 2, canvas.height / 2);
+    const texture = new THREE.CanvasTexture(canvas);
+    const material = new THREE.SpriteMaterial({ map: texture, transparent: true });
+    const sprite = new THREE.Sprite(material);
+    sprite.scale.set(canvas.width / 4, canvas.height / 4, 1);
+    return sprite;
+}
+
+async function loadGraph() {
+    const res = await fetch(`/api/graph?min_obs=${state.minObs}`);
+    const data = await res.json();
+    
+    allNodes = data.nodes;
+    allLinks = data.links;
+    
+    nodeMap = {};
+    allNodes.forEach(n => nodeMap[n.id] = n);
+    
+    allNodes.forEach(n => n.neighbors = new Set());
+    allLinks.forEach(l => {
+        if (nodeMap[l.source]) nodeMap[l.source].neighbors.add(l.target);
+        if (nodeMap[l.target]) nodeMap[l.target].neighbors.add(l.source);
+    });
+    
+    applyFilters();
+}
+
+function applyFilters() {
+    if (state.localMode && state.focusNode) {
+        const visited = new Set();
+        const queue = [[state.focusNode, 0]];
+        visited.add(state.focusNode);
+        
+        while (queue.length) {
+            const [nodeId, depth] = queue.shift();
+            if (depth < state.hopDistance) {
+                const node = nodeMap[nodeId];
+                if (node) {
+                    node.neighbors.forEach(neighborId => {
+                        if (!visited.has(neighborId)) {
+                            visited.add(neighborId);
+                            queue.push([neighborId, depth + 1]);
+                        }
+                    });
+                }
+            }
+        }
+        
+        visibleNodes = allNodes.filter(n => visited.has(n.id));
+        visibleLinks = allLinks.filter(l => visited.has(l.source) && visited.has(l.target));
+    } else {
+        if (state.minLinks > 0) {
+            const connectionCount = {};
+            allLinks.forEach(l => {
+                connectionCount[l.source] = (connectionCount[l.source] || 0) + 1;
+                connectionCount[l.target] = (connectionCount[l.target] || 0) + 1;
+            });
+            visibleNodes = allNodes.filter(n => (connectionCount[n.id] || 0) >= state.minLinks);
+            const nodeIds = new Set(visibleNodes.map(n => n.id));
+            visibleLinks = allLinks.filter(l => nodeIds.has(l.source) && nodeIds.has(l.target));
+        } else {
+            visibleNodes = [...allNodes];
+            visibleLinks = [...allLinks];
+        }
+    }
+    
+    if (state.searchQuery) {
+        const q = state.searchQuery.toLowerCase();
+        visibleNodes.forEach(n => n.searchMatch = n.name.toLowerCase().includes(q));
+    } else {
+        visibleNodes.forEach(n => n.searchMatch = false);
+    }
+    
+    document.getElementById('nodeCount').textContent = visibleNodes.length;
+    document.getElementById('linkCount').textContent = visibleLinks.length;
+    document.getElementById('localModePanel').style.display = state.localMode ? 'block' : 'none';
+    
+    buildGraph();
+}
+
+function buildGraph() {
+    nodeObjects.forEach(obj => scene.remove(obj));
+    linkObjects.forEach(obj => scene.remove(obj));
+    labelSprites.forEach(obj => scene.remove(obj));
+    nodeObjects = []; linkObjects = []; labelSprites = [];
+    
+    if (visibleNodes.length === 0) return;
+    
+    // Skip 3D build if in 2D mode
+    if (state.viewMode === '2d') {
+        init2D();
+        return;
+    }
+    
+    const spread = state.spread;
+    
+    // 3D: Fibonacci sphere
+    visibleNodes.forEach((node, i) => {
+        const phi = Math.acos(1 - 2 * (i + 0.5) / visibleNodes.length);
+        const theta = Math.PI * (1 + Math.sqrt(5)) * i;
+        node.x = spread * Math.sin(phi) * Math.cos(theta) + (Math.random() - 0.5) * 30;
+        node.y = spread * Math.sin(phi) * Math.sin(theta) + (Math.random() - 0.5) * 30;
+        node.z = spread * Math.cos(phi) + (Math.random() - 0.5) * 30;
+    });
+    
+    if (state.localMode && state.focusNode && nodeMap[state.focusNode]) {
+        const focus = nodeMap[state.focusNode];
+        focus.x = 0; focus.y = 0; focus.z = 0;
+    }
+    
+    // Links - subtle gray
+    const linkMaterial = new THREE.LineBasicMaterial({ 
+        color: 0x3a3a3c, transparent: true, opacity: state.linkOpacity 
+    });
+    
+    visibleLinks.forEach(link => {
+        const source = nodeMap[link.source];
+        const target = nodeMap[link.target];
+        if (!source || !target) return;
+        
+        const isPath = state.pathNodes.has(link.source) && state.pathNodes.has(link.target);
+        const mat = isPath ? 
+            new THREE.LineBasicMaterial({ color: 0x30D158, opacity: 1, transparent: true }) : 
+            linkMaterial;
+        
+        const geometry = new THREE.BufferGeometry().setFromPoints([
+            new THREE.Vector3(source.x, source.y, source.z),
+            new THREE.Vector3(target.x, target.y, target.z)
+        ]);
+        const line = new THREE.Line(geometry, mat);
+        line.userData = link;
+        scene.add(line);
+        linkObjects.push(line);
+    });
+    
+    // Nodes
+    visibleNodes.forEach(node => {
+        const size = (5 + Math.sqrt(node.obs_count) * 2) * state.nodeSize;
+        const isFocus = state.focusNode === node.id;
+        const isMatch = node.searchMatch;
+        
+        // Add glowing ring for focused node
+        if (isFocus) {
+            // Outer glow ring
+            const ringGeometry = new THREE.RingGeometry(size * 1.5, size * 2, 32);
+            const ringMaterial = new THREE.MeshBasicMaterial({ 
+                color: 0x0A84FF, 
+                transparent: true, 
+                opacity: 0.4,
+                side: THREE.DoubleSide
+            });
+            const ring = new THREE.Mesh(ringGeometry, ringMaterial);
+            ring.position.set(node.x, node.y, node.z);
+            ring.lookAt(camera.position);
+            scene.add(ring);
+            
+            // Inner ring
+            const innerRingGeometry = new THREE.RingGeometry(size * 1.35, size * 1.5, 32);
+            const innerRingMaterial = new THREE.MeshBasicMaterial({ 
+                color: 0x0A84FF, 
+                transparent: true, 
+                opacity: 0.8,
+                side: THREE.DoubleSide
+            });
+            const innerRing = new THREE.Mesh(innerRingGeometry, innerRingMaterial);
+            innerRing.position.set(node.x, node.y, node.z);
+            innerRing.lookAt(camera.position);
+            scene.add(innerRing);
+        }
+        
+        const geometry = new THREE.SphereGeometry(isFocus ? size * 1.3 : size, 16, 16);
+        const material = new THREE.MeshBasicMaterial({ 
+            color: getNodeColor(node),
+            transparent: true,
+            opacity: isMatch ? 1 : (state.searchQuery ? 0.15 : 0.9)
+        });
+        const sphere = new THREE.Mesh(geometry, material);
+        sphere.position.set(node.x, node.y, node.z);
+        sphere.userData = node;
+        scene.add(sphere);
+        nodeObjects.push(sphere);
+        
+        if (state.showLabels) {
+            const label = node.name.length > 18 ? node.name.substring(0, 16) + '...' : node.name;
+            const sprite = createTextSprite(label, 12);
+            const labelY = isFocus ? node.y + size * 2.2 + 10 : node.y + size + 10;
+            sprite.position.set(node.x, labelY, node.z);
+            sprite.material.opacity = isMatch ? 1 : (state.searchQuery ? 0.15 : 0.85);
+            scene.add(sprite);
+            labelSprites.push(sprite);
+        }
+    });
+    
+    fitCameraToGraph();
+    updateBreadcrumbs();
+}
+
+function focusOnNode(nodeId) {
+    if (!nodeMap[nodeId]) return;
+    
+    if (state.focusNode && state.focusNode !== nodeId) {
+        state.focusHistory.push(state.focusNode);
+    }
+    
+    state.localMode = true;
+    state.focusNode = nodeId;
+    applyFilters();
+}
+
+function backToFull() {
+    state.localMode = false;
+    state.focusNode = null;
+    state.focusHistory = [];
+    applyFilters();
+}
+
+function expandHop() {
+    if (state.localMode) {
+        state.hopDistance = Math.min(4, state.hopDistance + 1);
+        document.getElementById('hopDistance').value = state.hopDistance;
+        document.getElementById('hopDistanceValue').textContent = state.hopDistance;
+        applyFilters();
+    }
+}
+
+function updateBreadcrumbs() {
+    const container = document.getElementById('breadcrumbs');
+    container.innerHTML = '';
+    
+    state.focusHistory.forEach(nodeId => {
+        const node = nodeMap[nodeId];
+        if (node) {
+            const el = document.createElement('span');
+            el.className = 'breadcrumb-item';
+            el.textContent = node.name.slice(0, 15);
+            el.onclick = () => focusOnNode(nodeId);
+            container.appendChild(el);
+            
+            const arrow = document.createElement('span');
+            arrow.className = 'breadcrumb-arrow';
+            arrow.textContent = '→';
+            container.appendChild(arrow);
+        }
+    });
+    
+    if (state.focusNode && nodeMap[state.focusNode]) {
+        const el = document.createElement('span');
+        el.className = 'breadcrumb-item current';
+        el.textContent = nodeMap[state.focusNode].name.slice(0, 15);
+        container.appendChild(el);
+    }
+}
+
+// Path finding
+function startPathMode() {
+    state.pathMode = true;
+    state.pathStart = null;
+    state.pathEnd = null;
+    state.pathNodes.clear();
+    document.getElementById('startPath').classList.add('active');
+    document.getElementById('pathInfo').style.display = 'none';
+    buildGraph();
+}
+
+function clearPath() {
+    state.pathMode = false;
+    state.pathStart = null;
+    state.pathEnd = null;
+    state.pathNodes.clear();
+    document.getElementById('startPath').classList.remove('active');
+    document.getElementById('pathInfo').style.display = 'none';
+    buildGraph();
+}
+
+function findPath(startId, endId) {
+    const visited = new Map();
+    const queue = [[startId, [startId]]];
+    visited.set(startId, true);
+    
+    while (queue.length) {
+        const [current, path] = queue.shift();
+        if (current === endId) return path;
+        
+        const node = nodeMap[current];
+        if (node) {
+            node.neighbors.forEach(neighborId => {
+                if (!visited.has(neighborId)) {
+                    visited.set(neighborId, true);
+                    queue.push([neighborId, [...path, neighborId]]);
+                }
+            });
+        }
+    }
+    return null;
+}
+
+function handlePathClick(node) {
+    const pathInfo = document.getElementById('pathInfo');
+    
+    if (!state.pathStart) {
+        state.pathStart = node.id;
+        pathInfo.innerHTML = `<p style="font-size: 13px; margin: 0;"><strong>Start:</strong> ${node.name}</p><p style="font-size: 12px; color: rgba(255,255,255,0.5); margin: 4px 0 0 0;">Click another node</p>`;
+        pathInfo.className = 'path-info';
+        pathInfo.style.display = 'block';
+    } else if (!state.pathEnd && node.id !== state.pathStart) {
+        state.pathEnd = node.id;
+        const path = findPath(state.pathStart, state.pathEnd);
+        
+        if (path) {
+            state.pathNodes = new Set(path);
+            pathInfo.innerHTML = `<p style="font-size: 13px; color: #30D158; margin: 0;"><strong>Path found!</strong> ${path.length} nodes</p><p style="font-size: 12px; margin: 4px 0 0 0;">${path.map(id => nodeMap[id]?.name.slice(0, 12)).join(' → ')}</p>`;
+            pathInfo.className = 'path-info';
+        } else {
+            pathInfo.innerHTML = `<p style="font-size: 13px; color: #FF453A; margin: 0;">No path found</p>`;
+            pathInfo.className = 'path-info error';
+        }
+        
+        state.pathMode = false;
+        document.getElementById('startPath').classList.remove('active');
+        buildGraph();
+    }
+}
+
+// Search
+function handleSearch(query) {
+    state.searchQuery = query;
+    const resultsDiv = document.getElementById('searchResults');
+    resultsDiv.innerHTML = '';
+    
+    if (!query) {
+        applyFilters();
+        return;
+    }
+    
+    const q = query.toLowerCase();
+    const matches = allNodes.filter(n => n.name.toLowerCase().includes(q)).slice(0, 6);
+    
+    matches.forEach(node => {
+        const div = document.createElement('div');
+        div.className = 'search-result';
+        div.textContent = node.name;
+        div.onclick = () => {
+            focusOnNode(node.id);
+            document.getElementById('nodeSearch').value = '';
+            state.searchQuery = '';
+            resultsDiv.innerHTML = '';
+        };
+        resultsDiv.appendChild(div);
+    });
+    
+    applyFilters();
+}
+
+function onWindowResize() {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    
+    // Resize 2D canvas too
+    if (canvas2d) {
+        canvas2d.width = window.innerWidth;
+        canvas2d.height = window.innerHeight;
+        if (state.viewMode === '2d' && simulation) {
+            simulation.force('center', d3.forceCenter(canvas2d.width / 2, canvas2d.height / 2));
+            simulation.alpha(0.3).restart();
+        }
+    }
+}
+
+function onMouseMove(event) {
+    mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+    mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+    
+    raycaster.setFromCamera(mouse, camera);
+    const intersects = raycaster.intersectObjects(nodeObjects);
+    
+    const tooltip = document.getElementById('tooltip');
+    
+    if (intersects.length > 0) {
+        const node = intersects[0].object.userData;
+        hoveredNode = node;
+        
+        tooltip.querySelector('.tooltip-title').textContent = node.name;
+        tooltip.querySelector('.tooltip-type').textContent = node.entity_type || 'entity';
+        tooltip.querySelector('.tooltip-stat').textContent = `${node.obs_count} observations`;
+        tooltip.style.display = 'block';
+        tooltip.style.left = (event.clientX + 15) + 'px';
+        tooltip.style.top = (event.clientY + 15) + 'px';
+        
+        document.body.style.cursor = 'pointer';
+        
+        const connected = new Set([node.id, ...node.neighbors]);
+        nodeObjects.forEach(obj => {
+            obj.material.opacity = connected.has(obj.userData.id) ? 1 : 0.1;
+        });
+        linkObjects.forEach(obj => {
+            const isConn = obj.userData.source === node.id || obj.userData.target === node.id;
+            obj.material.opacity = isConn ? 0.8 : 0.03;
+        });
+        labelSprites.forEach((sprite, i) => {
+            sprite.material.opacity = connected.has(visibleNodes[i]?.id) ? 1 : 0.1;
+        });
+    } else {
+        hoveredNode = null;
+        tooltip.style.display = 'none';
+        document.body.style.cursor = 'default';
+        
+        nodeObjects.forEach(obj => {
+            obj.material.opacity = state.searchQuery ? (obj.userData.searchMatch ? 1 : 0.15) : 0.9;
+        });
+        linkObjects.forEach(obj => {
+            const isPath = state.pathNodes.has(obj.userData.source) && state.pathNodes.has(obj.userData.target);
+            obj.material.opacity = isPath ? 1 : state.linkOpacity;
+        });
+        labelSprites.forEach((sprite, i) => {
+            const isMatch = visibleNodes[i]?.searchMatch;
+            sprite.material.opacity = state.searchQuery ? (isMatch ? 1 : 0.15) : 0.85;
+        });
+    }
+}
+
+function onMouseClick() {
+    if (hoveredNode) {
+        if (state.pathMode) {
+            handlePathClick(hoveredNode);
+        } else {
+            focusOnNode(hoveredNode.id);
+        }
+    }
+}
+
+function onMouseDblClick() {
+    if (hoveredNode) {
+        viewEntityMemories(hoveredNode);
+    }
+}
+
+let contextMenuNode = null;
+
+function showContextMenu(event, node) {
+    event.preventDefault();
+    contextMenuNode = node;
+    
+    const menu = document.getElementById('contextMenu');
+    menu.querySelector('.context-menu-header').textContent = node.name;
+    menu.style.display = 'block';
+    menu.style.left = event.clientX + 'px';
+    menu.style.top = event.clientY + 'px';
+    
+    // Keep menu on screen
+    const rect = menu.getBoundingClientRect();
+    if (rect.right > window.innerWidth) {
+        menu.style.left = (window.innerWidth - rect.width - 10) + 'px';
+    }
+    if (rect.bottom > window.innerHeight) {
+        menu.style.top = (window.innerHeight - rect.height - 10) + 'px';
+    }
+}
+
+function hideContextMenu() {
+    document.getElementById('contextMenu').style.display = 'none';
+    contextMenuNode = null;
+}
+
+function onRightClick(event) {
+    event.preventDefault();
+    if (hoveredNode) {
+        showContextMenu(event, hoveredNode);
+    } else {
+        hideContextMenu();
+    }
+}
+
+function viewEntityMemories(node) {
+    // Extract entity_id from node id (format: "entity_123")
+    const entityId = node.id.replace('entity_', '');
+    // Open main dashboard filtered to this entity
+    window.open(`/?entity_id=${entityId}`, '_blank');
+}
+
+function resetCamera() {
+    camera.position.set(0, 0, 600);
+    controls.reset();
+    fitCameraToGraph();
+}
+
+function shuffleLayout() {
+    visibleNodes.forEach(node => {
+        node.x = (Math.random() - 0.5) * state.spread * 2;
+        node.y = (Math.random() - 0.5) * state.spread * 2;
+        node.z = (Math.random() - 0.5) * state.spread * 2;
+    });
+    buildGraph();
+}
+
+function toggleAutoRotate() {
+    autoRotate = !autoRotate;
+    document.getElementById('autoRotateBtn').classList.toggle('active', autoRotate);
+}
+
+function setViewMode(mode) {
+    state.viewMode = mode;
+    document.getElementById('btn2D').classList.toggle('active', mode === '2d');
+    document.getElementById('btn3D').classList.toggle('active', mode === '3d');
+    
+    // Toggle visibility
+    document.getElementById('graph').style.display = mode === '3d' ? 'block' : 'none';
+    document.getElementById('graph2d').style.display = mode === '2d' ? 'block' : 'none';
+    
+    // Disable auto-rotate in 2D mode
+    if (mode === '2d' && autoRotate) {
+        toggleAutoRotate();
+    }
+    
+    // Set default spread for each mode
+    if (mode === '2d') {
+        state.spread = 672;
+        document.getElementById('spread').value = 672;
+        document.getElementById('spreadValue').textContent = '672';
+        init2D();
+    } else {
+        state.spread = 350;
+        document.getElementById('spread').value = 350;
+        document.getElementById('spreadValue').textContent = '350';
+        if (simulation) simulation.stop();
+        buildGraph();
+    }
+}
+
+function setTheme(theme) {
+    localStorage.setItem('theme', theme);
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    const isDark = theme === 'dark' || (theme === 'system' && prefersDark);
+    
+    if (isDark) {
+        document.documentElement.classList.add('dark');
+        document.documentElement.classList.remove('light');
+    } else {
+        document.documentElement.classList.remove('dark');
+        document.documentElement.classList.add('light');
+    }
+    
+    // Update button states
+    updateThemeButtons(theme);
+    
+    // Update 3D scene background
+    if (scene) {
+        scene.background = new THREE.Color(getThemeColors().background);
+    }
+    
+    // Trigger re-render for 2D
+    if (state.viewMode === '2d' && simulation) {
+        simulation.alpha(0.01).restart();
+    }
+}
+
+function updateThemeButtons(theme) {
+    const lightBtn = document.getElementById('themeLightBtn');
+    const systemBtn = document.getElementById('themeSystemBtn');
+    const darkBtn = document.getElementById('themeDarkBtn');
+    
+    // Reset all buttons
+    [lightBtn, systemBtn, darkBtn].forEach(btn => {
+        btn.classList.remove('theme-active');
+    });
+    
+    // Highlight active button
+    const activeBtn = theme === 'light' ? lightBtn : theme === 'system' ? systemBtn : darkBtn;
+    activeBtn.classList.add('theme-active');
+}
+
+// Initialize theme button states on load
+function initThemeButtons() {
+    const theme = localStorage.getItem('theme') || 'system';
+    updateThemeButtons(theme);
+}
+
+// ==================== 2D Force-Directed Graph ====================
+let simulation = null;
+let canvas2d, ctx2d;
+let transform = d3.zoomIdentity;
+let zoom2d = null;
+let draggedNode = null;
+
+function findNodeAt(event, nodes) {
+    const [x, y] = d3.pointer(event, canvas2d);
+    const tx = (x - transform.x) / transform.k;
+    const ty = (y - transform.y) / transform.k;
+    return nodes.find(n => {
+        const r = getNodeRadius(n);
+        return Math.hypot(n.x - tx, n.y - ty) < r;
+    });
+}
+
+function handleClick2D(event, nodes) {
+    const node = findNodeAt(event, nodes);
+    if (node) {
+        focusOnNode(node.id);
+    }
+}
+
+function handleDblClick2D(event, nodes) {
+    const node = findNodeAt(event, nodes);
+    if (node) {
+        viewEntityMemories(node);
+    }
+}
+
+function handleRightClick2D(event, nodes) {
+    event.preventDefault();
+    const node = findNodeAt(event, nodes);
+    if (node) {
+        showContextMenu(event, node);
+    } else {
+        hideContextMenu();
+    }
+}
+
+function init2D() {
+    canvas2d = document.getElementById('graph2d');
+    ctx2d = canvas2d.getContext('2d');
+    
+    // Set canvas size
+    canvas2d.width = window.innerWidth;
+    canvas2d.height = window.innerHeight;
+    
+    // Prepare simulation data
+    const simNodes = visibleNodes.map(n => ({
+        ...n,
+        x: n.x || Math.random() * canvas2d.width,
+        y: n.y || Math.random() * canvas2d.height
+    }));
+    
+    const nodeById = new Map(simNodes.map(n => [n.id, n]));
+    const simLinks = visibleLinks.map(l => ({
+        source: nodeById.get(l.source),
+        target: nodeById.get(l.target),
+        ...l
+    })).filter(l => l.source && l.target);
+    
+    // Create force simulation - scale forces to fill the viewport
+    const viewportScale = Math.min(canvas2d.width, canvas2d.height) / 800;
+    simulation = d3.forceSimulation(simNodes)
+        .force('link', d3.forceLink(simLinks).id(d => d.id).distance(state.spread * viewportScale * 0.5).strength(0.2))
+        .force('charge', d3.forceManyBody().strength(-state.spread * viewportScale * 3))
+        .force('center', d3.forceCenter(canvas2d.width / 2, canvas2d.height / 2))
+        .force('collision', d3.forceCollide().radius(d => getNodeRadius(d) + 10))
+        .force('x', d3.forceX(canvas2d.width / 2).strength(0.02))
+        .force('y', d3.forceY(canvas2d.height / 2).strength(0.02))
+        .alphaDecay(0.015)
+        .on('tick', () => render2D(simNodes, simLinks));
+    
+    // Zoom & Pan (only when not dragging a node)
+    zoom2d = d3.zoom()
+        .scaleExtent([0.1, 4])
+        .filter(event => {
+            // Allow zoom on wheel, pan only if not on a node
+            if (event.type === 'wheel') return true;
+            if (event.type === 'mousedown' || event.type === 'touchstart') {
+                const node = findNodeAt(event, simNodes);
+                return !node; // Only allow pan if NOT on a node
+            }
+            return true;
+        })
+        .on('zoom', (event) => {
+            transform = event.transform;
+            render2D(simNodes, simLinks);
+        });
+    
+    d3.select(canvas2d)
+        .call(zoom2d)
+        .call(drag(simulation, simNodes, simLinks))
+        .on('click', (event) => handleClick2D(event, simNodes))
+        .on('contextmenu', (event) => handleRightClick2D(event, simNodes));
+    
+    // If there's a focused node, smoothly pan to center it after simulation settles
+    if (state.focusNode) {
+        const focusedNode = simNodes.find(n => n.id === state.focusNode);
+        if (focusedNode) {
+            setTimeout(() => {
+                centerOn2DNode(focusedNode);
+            }, 500);
+        }
+    }
+    
+    // Initial render
+    render2D(simNodes, simLinks);
+}
+
+function centerOn2DNode(node) {
+    if (!canvas2d || !zoom2d) return;
+    
+    const targetX = canvas2d.width / 2 - node.x;
+    const targetY = canvas2d.height / 2 - node.y;
+    
+    d3.select(canvas2d)
+        .transition()
+        .duration(600)
+        .ease(d3.easeCubicOut)
+        .call(zoom2d.transform, d3.zoomIdentity.translate(targetX, targetY));
+}
+
+function getNodeRadius(node) {
+    return (5 + Math.sqrt(node.obs_count) * 2) * state.nodeSize;
+}
+
+function getNodeColor2D(node) {
+    if (state.pathNodes.has(node.id)) return '#30D158';
+    const type = (node.entity_type || '').toLowerCase();
+    if (type.includes('person') || type.includes('human')) return '#BF5AF2';
+    if (type.includes('project') || type.includes('repo') || type.includes('software')) return '#0A84FF';
+    if (type.includes('tech') || type.includes('tool') || type.includes('framework')) return '#30D158';
+    if (type.includes('website') || type.includes('web')) return '#FF9F0A';
+    return '#8E8E93';
+}
+
+function render2D(nodes, links) {
+    ctx2d.save();
+    ctx2d.clearRect(0, 0, canvas2d.width, canvas2d.height);
+    ctx2d.translate(transform.x, transform.y);
+    ctx2d.scale(transform.k, transform.k);
+    
+    // Draw links
+    ctx2d.strokeStyle = `${getThemeColors().link}${state.linkOpacity})`;
+    ctx2d.lineWidth = 1;
+    links.forEach(link => {
+        if (!link.source || !link.target) return;
+        ctx2d.beginPath();
+        ctx2d.moveTo(link.source.x, link.source.y);
+        ctx2d.lineTo(link.target.x, link.target.y);
+        ctx2d.stroke();
+    });
+    
+    // Draw nodes
+    nodes.forEach(node => {
+        const r = getNodeRadius(node);
+        const isHovered = hoveredNode && hoveredNode.id === node.id;
+        const isFocused = state.focusNode === node.id;
+        
+        // Draw focus ring (glowing effect)
+        if (isFocused) {
+            // Outer glow
+            ctx2d.beginPath();
+            ctx2d.arc(node.x, node.y, r + 12, 0, 2 * Math.PI);
+            ctx2d.strokeStyle = 'rgba(10, 132, 255, 0.3)';
+            ctx2d.lineWidth = 8;
+            ctx2d.stroke();
+            
+            // Inner ring
+            ctx2d.beginPath();
+            ctx2d.arc(node.x, node.y, r + 6, 0, 2 * Math.PI);
+            ctx2d.strokeStyle = 'rgba(10, 132, 255, 0.8)';
+            ctx2d.lineWidth = 3;
+            ctx2d.stroke();
+        }
+        
+        ctx2d.beginPath();
+        ctx2d.arc(node.x, node.y, r, 0, 2 * Math.PI);
+        ctx2d.fillStyle = getNodeColor2D(node);
+        ctx2d.globalAlpha = isHovered || isFocused ? 1 : 0.9;
+        ctx2d.fill();
+        ctx2d.globalAlpha = 1;
+        
+        // Draw label
+        if (state.showLabels) {
+            ctx2d.font = '500 11px -apple-system, sans-serif';
+            ctx2d.fillStyle = getThemeColors().text;
+            ctx2d.textAlign = 'center';
+            const label = node.name.length > 15 ? node.name.slice(0, 13) + '...' : node.name;
+            const labelOffset = isFocused ? r + 26 : r + 14;
+            ctx2d.fillText(label, node.x, node.y + labelOffset);
+        }
+    });
+    
+    ctx2d.restore();
+}
+
+function drag(simulation, nodes, links) {
+    function dragstarted(event) {
+        const node = findNodeAt(event.sourceEvent, nodes);
+        if (node) {
+            if (!event.active) simulation.alphaTarget(0.3).restart();
+            draggedNode = node;
+            draggedNode.fx = draggedNode.x;
+            draggedNode.fy = draggedNode.y;
+        }
+    }
+    
+    function dragged(event) {
+        if (draggedNode) {
+            const [x, y] = d3.pointer(event.sourceEvent, canvas2d);
+            draggedNode.fx = (x - transform.x) / transform.k;
+            draggedNode.fy = (y - transform.y) / transform.k;
+        }
+    }
+    
+    function dragended(event) {
+        if (!event.active) simulation.alphaTarget(0);
+        if (draggedNode) {
+            draggedNode.fx = null;
+            draggedNode.fy = null;
+            draggedNode = null;
+        }
+    }
+    
+    return d3.drag()
+        .filter(event => findNodeAt(event, nodes) != null)
+        .on('start', dragstarted)
+        .on('drag', dragged)
+        .on('end', dragended);
+}
+
+function animate() {
+    requestAnimationFrame(animate);
+    if (autoRotate) scene.rotation.y += 0.002;
+    labelSprites.forEach(sprite => sprite.lookAt(camera.position));
+    controls.update();
+    renderer.render(scene, camera);
+}
+
+// Slider bindings
+function bindSlider(id, key, cb) {
+    const el = document.getElementById(id);
+    const valEl = document.getElementById(id + 'Value');
+    el.addEventListener('input', () => {
+        const val = parseFloat(el.value);
+        state[key] = key === 'linkOpacity' ? val / 100 : val;
+        if (valEl) valEl.textContent = key === 'linkOpacity' ? val + '%' : (key === 'nodeSize' ? val.toFixed(1) : val);
+    });
+    el.addEventListener('change', cb || applyFilters);
+}
+
+bindSlider('spread', 'spread', () => {
+    if (state.viewMode === '2d' && simulation) {
+        simulation.force('link').distance(state.spread / 4);
+        simulation.force('charge').strength(-state.spread * 0.8);
+        simulation.alpha(0.5).restart();
+    } else {
+        buildGraph();
+    }
+});
+bindSlider('nodeSize', 'nodeSize', () => {
+    if (state.viewMode === '2d' && simulation) {
+        simulation.force('collision').radius(d => getNodeRadius(d) + 5);
+        simulation.alpha(0.3).restart();
+    } else {
+        buildGraph();
+    }
+});
+bindSlider('linkOpacity', 'linkOpacity', () => {
+    if (state.viewMode === '2d') {
+        // Just re-render, no need to restart simulation
+        const nodes = simulation.nodes();
+        const links = simulation.force('link').links();
+        render2D(nodes, links);
+    } else {
+        buildGraph();
+    }
+});
+bindSlider('minObs', 'minObs', loadGraph);
+bindSlider('minLinks', 'minLinks');
+bindSlider('hopDistance', 'hopDistance');
+
+document.getElementById('showLabels').addEventListener('change', (e) => {
+    state.showLabels = e.target.checked;
+    buildGraph();
+});
+
+document.getElementById('backToFull').addEventListener('click', backToFull);
+document.getElementById('expandNode').addEventListener('click', expandHop);
+document.getElementById('startPath').addEventListener('click', startPathMode);
+document.getElementById('clearPath').addEventListener('click', clearPath);
+document.getElementById('nodeSearch').addEventListener('input', (e) => handleSearch(e.target.value));
+
+// Time Animation
+document.getElementById('animSpeed').addEventListener('input', (e) => {
+    state.timeSpeed = parseInt(e.target.value);
+    document.getElementById('animSpeedValue').textContent = state.timeSpeed + 'x';
+});
+
+document.getElementById('playTimeBtn').addEventListener('click', toggleTimeAnimation);
+document.getElementById('resetTimeBtn').addEventListener('click', resetTimeAnimation);
+document.getElementById('timeScrubber').addEventListener('input', (e) => {
+    if (state.timeRange) {
+        const pct = parseInt(e.target.value) / 100;
+        const minT = new Date(state.timeRange.min).getTime();
+        const maxT = new Date(state.timeRange.max).getTime();
+        state.currentTime = new Date(minT + (maxT - minT) * pct);
+        updateTimeDisplay();
+        applyTimeFilter();
+    }
+});
+
+// Context menu handlers
+document.getElementById('ctxViewMemories').addEventListener('click', () => {
+    if (contextMenuNode) {
+        viewEntityMemories(contextMenuNode);
+        hideContextMenu();
+    }
+});
+document.getElementById('ctxStartPath').addEventListener('click', () => {
+    if (contextMenuNode) {
+        startPathMode();
+        handlePathClick(contextMenuNode);
+        hideContextMenu();
+    }
+});
+// Close context menu on click elsewhere
+document.addEventListener('click', (e) => {
+    if (!e.target.closest('.context-menu')) {
+        hideContextMenu();
+    }
+});
+// Close context menu on scroll/zoom
+document.addEventListener('wheel', hideContextMenu);
+
+async function loadTimeData() {
+    try {
+        const res = await fetch(`/api/graph/timeline?min_obs=${state.minObs}`);
+        const data = await res.json();
+        state.timeData = data;
+        state.timeRange = data.timeRange;
+        
+        if (state.timeRange && state.timeRange.min) {
+            document.getElementById('timeScrubber').style.display = 'block';
+            document.getElementById('timeDisplay').style.display = 'block';
+            state.currentTime = new Date(state.timeRange.max);
+            updateTimeDisplay();
+        }
+    } catch (e) {
+        console.log('Time data not available');
+    }
+}
+
+function updateTimeDisplay() {
+    if (state.currentTime) {
+        const opts = { year: 'numeric', month: 'short', day: 'numeric' };
+        document.getElementById('timeDisplay').textContent = state.currentTime.toLocaleDateString('en-US', opts);
+        
+        if (state.timeRange) {
+            const minT = new Date(state.timeRange.min).getTime();
+            const maxT = new Date(state.timeRange.max).getTime();
+            const pct = (state.currentTime.getTime() - minT) / (maxT - minT) * 100;
+            document.getElementById('timeScrubber').value = Math.min(100, Math.max(0, pct));
+        }
+    }
+}
+
+function applyTimeFilter() {
+    if (!state.timeData || !state.currentTime) return;
+    
+    const currentT = state.currentTime.getTime();
+    
+    visibleNodes = state.timeData.nodes.filter(n => {
+        if (!n.first_seen) return true;
+        return new Date(n.first_seen).getTime() <= currentT;
+    });
+    
+    const nodeIds = new Set(visibleNodes.map(n => n.id));
+    visibleLinks = state.timeData.links.filter(l => {
+        if (!nodeIds.has(l.source) || !nodeIds.has(l.target)) return false;
+        if (!l.formed_at) return true;
+        return new Date(l.formed_at).getTime() <= currentT;
+    });
+    
+    nodeMap = {};
+    visibleNodes.forEach(n => {
+        nodeMap[n.id] = n;
+        n.neighbors = new Set();
+    });
+    visibleLinks.forEach(l => {
+        if (nodeMap[l.source]) nodeMap[l.source].neighbors.add(l.target);
+        if (nodeMap[l.target]) nodeMap[l.target].neighbors.add(l.source);
+    });
+    
+    document.getElementById('nodeCount').textContent = visibleNodes.length;
+    document.getElementById('linkCount').textContent = visibleLinks.length;
+    
+    buildGraph();
+}
+
+let timeAnimInterval = null;
+
+function toggleTimeAnimation() {
+    if (state.timeAnimating) {
+        stopTimeAnimation();
+    } else {
+        startTimeAnimation();
+    }
+}
+
+async function startTimeAnimation() {
+    if (!state.timeData) await loadTimeData();
+    
+    if (!state.timeRange || !state.timeRange.min) {
+        alert('No time data available');
+        return;
+    }
+    
+    state.timeAnimating = true;
+    state.currentTime = new Date(state.timeRange.min);
+    document.getElementById('playTimeBtn').textContent = '⏸ Pause';
+    document.getElementById('playTimeBtn').classList.add('active');
+    
+    const minT = new Date(state.timeRange.min).getTime();
+    const maxT = new Date(state.timeRange.max).getTime();
+    const totalDays = (maxT - minT) / (1000 * 60 * 60 * 24);
+    const msPerFrame = 50;
+    const daysPerFrame = (totalDays / 200) * state.timeSpeed;
+    
+    timeAnimInterval = setInterval(() => {
+        state.currentTime = new Date(state.currentTime.getTime() + daysPerFrame * 24 * 60 * 60 * 1000);
+        
+        if (state.currentTime.getTime() >= maxT) {
+            state.currentTime = new Date(maxT);
+            stopTimeAnimation();
+        }
+        
+        updateTimeDisplay();
+        applyTimeFilter();
+    }, msPerFrame);
+}
+
+function stopTimeAnimation() {
+    state.timeAnimating = false;
+    if (timeAnimInterval) {
+        clearInterval(timeAnimInterval);
+        timeAnimInterval = null;
+    }
+    document.getElementById('playTimeBtn').textContent = '▶ Play';
+    document.getElementById('playTimeBtn').classList.remove('active');
+}
+
+function resetTimeAnimation() {
+    stopTimeAnimation();
+    if (state.timeRange && state.timeRange.max) {
+        state.currentTime = new Date(state.timeRange.max);
+        updateTimeDisplay();
+    }
+    loadGraph();
+}
+
+loadTimeData();
+init();
+initThemeButtons();
+
+// Listen for system theme changes
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+    const theme = localStorage.getItem('theme') || 'system';
+    if (theme === 'system') {
+        if (e.matches) {
+            document.documentElement.classList.add('dark');
+            document.documentElement.classList.remove('light');
+        } else {
+            document.documentElement.classList.remove('dark');
+            document.documentElement.classList.add('light');
+        }
+        // Update 3D scene background
+        if (scene) {
+            scene.background = new THREE.Color(getThemeColors().background);
+        }
+        // Trigger re-render for 2D
+        if (state.viewMode === '2d' && simulation) {
+            simulation.alpha(0.01).restart();
+        }
+    }
+});
+</script>
+</body>
+</html>
