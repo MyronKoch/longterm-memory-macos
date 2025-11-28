@@ -150,21 +150,55 @@ The [AGENT.md](AGENT.md) file contains step-by-step instructions optimized for A
 ## 🏗️ Architecture
 
 ```mermaid
+flowchart TB
+    subgraph Inputs[Data Sources]
+        Claude[Claude Desktop]
+        Browser[Chrome Extension]
+    end
+    
+    subgraph Core[Core System]
+        MCP[MCP Server<br/>postgres-mcp]
+        NH[Native Host<br/>Python]
+        DB[(PostgreSQL 17<br/>+ pgvector)]
+        Dash[Dashboard<br/>:5555]
+    end
+    
+    subgraph Services[Background Services]
+        Ollama[Ollama<br/>nomic-embed]
+        BG[LaunchAgents]
+    end
+    
+    Claude <--> MCP
+    MCP <--> DB
+    
+    Browser <--> NH
+    NH <--> DB
+    
+    Dash <--> DB
+    Browser -.->|badge queries| Dash
+    
+    BG --> DB
+    Ollama <--> BG
+```
+
+### Multi-Mac Sync
+
+```mermaid
 flowchart LR
     subgraph Mac1[Mac #1]
-        DB1[(PostgreSQL 17\n+ pgvector)]
-        D1[Dashboard\n:5555]
+        DB1[(PostgreSQL)]
+        D1[Dashboard]
         DB1 --- D1
     end
     
     subgraph Mac2[Mac #2]
-        DB2[(PostgreSQL 17\n+ pgvector)]
-        D2[Dashboard\n:5555]
+        DB2[(PostgreSQL)]
+        D2[Dashboard]
         DB2 --- D2
     end
     
     subgraph Sync[iCloud Drive]
-        T[Transport Layer]
+        T[Transport]
     end
     
     DB1 <--> T
