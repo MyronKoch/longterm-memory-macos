@@ -1079,7 +1079,8 @@ function buildGraph() {
         if (state.showLabels) {
             const label = node.name.length > 18 ? node.name.substring(0, 16) + '...' : node.name;
             const sprite = createTextSprite(label, 12);
-            sprite.position.set(node.x, node.y + size + 10, node.z);
+            const labelY = isFocus ? node.y + size * 2.2 + 10 : node.y + size + 10;
+            sprite.position.set(node.x, labelY, node.z);
             sprite.material.opacity = isMatch ? 1 : (state.searchQuery ? 0.15 : 0.85);
             scene.add(sprite);
             labelSprites.push(sprite);
