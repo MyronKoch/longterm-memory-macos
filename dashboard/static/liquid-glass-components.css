@@ -570,13 +570,13 @@ button.tab {
 a.tab:hover,
 button.tab:hover {
   color: var(--text-primary);
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--bg-tertiary);
 }
 
 a.tab.active,
 button.tab.active {
-  background: rgba(255, 255, 255, 0.12);
-  color: var(--text-primary);
+  background: var(--brand-primary);
+  color: white;
   font-weight: 500;
 }
 
