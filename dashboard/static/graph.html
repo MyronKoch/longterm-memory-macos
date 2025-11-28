@@ -322,7 +322,7 @@
             font-weight: 500;
             color: var(--text-primary);
             background: var(--fill-primary);
-            border: 1px solid var(--glass-border);
+            border: none;
             border-radius: 10px;
             cursor: pointer;
             transition: all 0.15s ease;
@@ -338,6 +338,11 @@
             background: rgba(10, 132, 255, 0.25);
             border-color: rgba(10, 132, 255, 0.4);
             color: var(--brand-primary);
+        }
+        
+        /* Theme button highlight - works in both light and dark */
+        .btn.theme-active {
+            background: var(--bg-tertiary);
         }
         
         .btn-group {
@@ -1486,14 +1491,12 @@ function updateThemeButtons(theme) {
     
     // Reset all buttons
     [lightBtn, systemBtn, darkBtn].forEach(btn => {
-        btn.classList.remove('bg-white/20');
-        btn.classList.add('btn-ghost');
+        btn.classList.remove('theme-active');
     });
     
     // Highlight active button
     const activeBtn = theme === 'light' ? lightBtn : theme === 'system' ? systemBtn : darkBtn;
-    activeBtn.classList.add('bg-white/20');
-    activeBtn.classList.remove('btn-ghost');
+    activeBtn.classList.add('theme-active');
 }
 
 // Initialize theme button states on load
