@@ -2,6 +2,8 @@
 
 Chrome/Chromium extension for capturing web content directly to your local longterm memory PostgreSQL database.
 
+![Browser Extension](../docs/images/chrome-extension.png)
+
 ## ✨ What's New in v2.0
 
 - **🧠 Branded Context Menu**: Clear "Longterm Memory Database" parent menu
