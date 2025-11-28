@@ -334,9 +334,9 @@
         }
         
         .btn.active {
-            background: rgba(10, 132, 255, 0.25);
-            border-color: rgba(10, 132, 255, 0.4);
-            color: rgba(10, 132, 255, 1);
+            background: var(--brand-primary);
+            border-color: var(--brand-primary);
+            color: white;
         }
         
         .btn-group {
@@ -587,6 +587,19 @@
                 <button class="toggle-btn active" id="btn3D" onclick="setViewMode('3d')">3D</button>
                 <button class="toggle-btn" id="btn2D" onclick="setViewMode('2d')">2D</button>
             </div>
+        </div>
+        
+        <!-- Right: Theme Toggle -->
+        <div class="flex items-center gap-2">
+            <button onclick="setTheme('light')" id="themeLightBtn" class="btn btn-icon btn-sm btn-ghost" aria-label="Light theme">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+            </button>
+            <button onclick="setTheme('system')" id="themeSystemBtn" class="btn btn-icon btn-sm btn-ghost" aria-label="System theme">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+            </button>
+            <button onclick="setTheme('dark')" id="themeDarkBtn" class="btn btn-icon btn-sm btn-ghost" aria-label="Dark theme">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+            </button>
         </div>
     </nav>
 
@@ -1438,6 +1451,43 @@ function setViewMode(mode) {
     }
 }
 
+function setTheme(theme) {
+    localStorage.setItem('theme', theme);
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    const isDark = theme === 'dark' || (theme === 'system' && prefersDark);
+    
+    if (isDark) {
+        document.documentElement.classList.add('dark');
+        document.documentElement.classList.remove('light');
+    } else {
+        document.documentElement.classList.remove('dark');
+        document.documentElement.classList.add('light');
+    }
+    
+    // Update button states
+    document.getElementById('themeLightBtn').classList.toggle('active', theme === 'light');
+    document.getElementById('themeSystemBtn').classList.toggle('active', theme === 'system');
+    document.getElementById('themeDarkBtn').classList.toggle('active', theme === 'dark');
+    
+    // Update 3D scene background
+    if (scene) {
+        scene.background = new THREE.Color(getThemeColors().background);
+    }
+    
+    // Trigger re-render for 2D
+    if (state.viewMode === '2d' && simulation) {
+        simulation.alpha(0.01).restart();
+    }
+}
+
+// Initialize theme button states on load
+function initThemeButtons() {
+    const theme = localStorage.getItem('theme') || 'system';
+    document.getElementById('themeLightBtn').classList.toggle('active', theme === 'light');
+    document.getElementById('themeSystemBtn').classList.toggle('active', theme === 'system');
+    document.getElementById('themeDarkBtn').classList.toggle('active', theme === 'dark');
+}
+
 // ==================== 2D Force-Directed Graph ====================
 let simulation = null;
 let canvas2d, ctx2d;
@@ -1904,6 +1954,7 @@ function resetTimeAnimation() {
 
 loadTimeData();
 init();
+initThemeButtons();
 
 // Listen for system theme changes
 window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
