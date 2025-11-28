@@ -110,25 +110,14 @@ For other browsers, copy the native messaging manifest to their respective direc
 
 ## Architecture
 
-```
-┌─────────────────┐     ┌──────────────────┐     ┌─────────────────┐
-│  Browser Page   │────►│ Content Script   │────►│ Background.js   │
-└─────────────────┘     └──────────────────┘     └────────┬────────┘
-                                                          │
-                        ┌──────────────────┐              │
-                        │  Native Host     │◄─────────────┘
-                        │  (Python)        │
-                        └────────┬─────────┘
-                                 │
-                        ┌────────▼─────────┐
-                        │   PostgreSQL     │
-                        │ longterm_memory  │
-                        └──────────────────┘
-                                 │
-                        ┌────────▼─────────┐
-                        │   Dashboard      │◄──── Memory Badge queries
-                        │   localhost:5555 │
-                        └──────────────────┘
+```mermaid
+flowchart LR
+    Page[Browser Page] --> CS[Content Script]
+    CS --> BG[Background.js]
+    BG --> NH[Native Host<br/>Python]
+    NH --> DB[(PostgreSQL<br/>longterm_memory)]
+    DB --> Dash[Dashboard<br/>localhost:5555]
+    Dash -.-> BG
 ```
 
 ## Data Flow

@@ -12,7 +12,7 @@ Or clone and run locally:
 
 ```bash
 git clone https://github.com/MyronKoch/longterm-memory-macos.git
-cd longterm-memory
+cd longterm-memory-macos
 chmod +x install.sh
 ./install.sh
 ```

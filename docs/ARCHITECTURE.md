@@ -2,27 +2,18 @@
 
 ## 🏗️ System Architecture
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                    Longterm Memory System                       │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  ┌──────────────┐    ┌──────────────┐    ┌──────────────┐    │
-│  │   Claude     │    │     MCP      │    │  PostgreSQL  │    │
-│  │   Desktop    │◄──►│    Server    │◄──►│     17       │    │
-│  │              │    │  (@henkey)   │    │  + pgvector  │    │
-│  └──────────────┘    └──────────────┘    └──────┬───────┘    │
-│                                                   │             │
-│  ┌──────────────┐    ┌──────────────┐           │             │
-│  │   Ollama     │    │  Background  │           │             │
-│  │  (nomic-     │◄──►│  Services    │───────────┘             │
-│  │   embed)     │    │ (LaunchAgent)│                         │
-│  └──────────────┘    └──────────────┘                         │
-│                           │       │                            │
-│                           ▼       ▼                            │
-│                      Backups  Embeddings                       │
-│                      (3 AM)    (4 AM)                         │
-└─────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    subgraph System[Longterm Memory System]
+        Claude[Claude Desktop] <--> MCP[MCP Server<br/>postgres-mcp]
+        MCP <--> DB[(PostgreSQL 17<br/>+ pgvector)]
+        
+        Ollama[Ollama<br/>nomic-embed] <--> BG[Background Services<br/>LaunchAgents]
+        BG --> DB
+        
+        BG --> Backups[Backups<br/>3 AM]
+        BG --> Embed[Embeddings<br/>4 AM]
+    end
 ```
 
 ## 📊 Database Schema
