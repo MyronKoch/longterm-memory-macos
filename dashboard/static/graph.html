@@ -35,6 +35,13 @@
             background: var(--bg-base);
         }
         
+        /* Utility classes for theme toggle */
+        .bg-black\/20 { background: rgba(0, 0, 0, 0.2); }
+        .bg-white\/20 { background: rgba(255, 255, 255, 0.2); }
+        .rounded-lg { border-radius: 8px; }
+        .p-1 { padding: 4px; }
+        .gap-1 { gap: 4px; }
+        
         #graph { 
             width: 100vw; 
             height: 100vh; 
@@ -334,9 +341,9 @@
         }
         
         .btn.active {
-            background: var(--brand-primary);
-            border-color: var(--brand-primary);
-            color: white;
+            background: rgba(10, 132, 255, 0.25);
+            border-color: rgba(10, 132, 255, 0.4);
+            color: var(--brand-primary);
         }
         
         .btn-group {
@@ -590,15 +597,15 @@
         </div>
         
         <!-- Right: Theme Toggle -->
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-1 p-1 bg-black/20 rounded-lg">
             <button onclick="setTheme('light')" id="themeLightBtn" class="btn btn-icon btn-sm btn-ghost" aria-label="Light theme">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
             </button>
             <button onclick="setTheme('system')" id="themeSystemBtn" class="btn btn-icon btn-sm btn-ghost" aria-label="System theme">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
             </button>
             <button onclick="setTheme('dark')" id="themeDarkBtn" class="btn btn-icon btn-sm btn-ghost" aria-label="Dark theme">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
             </button>
         </div>
     </nav>
@@ -1465,9 +1472,7 @@ function setTheme(theme) {
     }
     
     // Update button states
-    document.getElementById('themeLightBtn').classList.toggle('active', theme === 'light');
-    document.getElementById('themeSystemBtn').classList.toggle('active', theme === 'system');
-    document.getElementById('themeDarkBtn').classList.toggle('active', theme === 'dark');
+    updateThemeButtons(theme);
     
     // Update 3D scene background
     if (scene) {
@@ -1480,12 +1485,27 @@ function setTheme(theme) {
     }
 }
 
+function updateThemeButtons(theme) {
+    const lightBtn = document.getElementById('themeLightBtn');
+    const systemBtn = document.getElementById('themeSystemBtn');
+    const darkBtn = document.getElementById('themeDarkBtn');
+    
+    // Remove active class from all
+    [lightBtn, systemBtn, darkBtn].forEach(btn => {
+        btn.classList.remove('bg-white/20');
+        btn.classList.add('btn-ghost');
+    });
+    
+    // Add active class to selected
+    const activeBtn = theme === 'light' ? lightBtn : theme === 'system' ? systemBtn : darkBtn;
+    activeBtn.classList.add('bg-white/20');
+    activeBtn.classList.remove('btn-ghost');
+}
+
 // Initialize theme button states on load
 function initThemeButtons() {
     const theme = localStorage.getItem('theme') || 'system';
-    document.getElementById('themeLightBtn').classList.toggle('active', theme === 'light');
-    document.getElementById('themeSystemBtn').classList.toggle('active', theme === 'system');
-    document.getElementById('themeDarkBtn').classList.toggle('active', theme === 'dark');
+    updateThemeButtons(theme);
 }
 
 // ==================== 2D Force-Directed Graph ====================
