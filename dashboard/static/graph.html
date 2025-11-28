@@ -1662,7 +1662,8 @@ function render2D(nodes, links) {
             ctx2d.fillStyle = getThemeColors().text;
             ctx2d.textAlign = 'center';
             const label = node.name.length > 15 ? node.name.slice(0, 13) + '...' : node.name;
-            ctx2d.fillText(label, node.x, node.y + r + 14);
+            const labelOffset = isFocused ? r + 26 : r + 14;
+            ctx2d.fillText(label, node.x, node.y + labelOffset);
         }
     });
     
