@@ -146,9 +146,6 @@ it succeeds, then proceed to the next. Run the health check at the end.
 ```
 
 The [AGENT.md](AGENT.md) file contains step-by-step instructions optimized for AI agents with verification checks after each step.
-chmod +x install.sh
-./install.sh
-```
 
 ## 🏗️ Architecture
 
