@@ -18,6 +18,7 @@
     <!-- Liquid Glass Design System -->
     <link rel="stylesheet" href="/static/liquid-glass.css">
     <link rel="stylesheet" href="/static/liquid-glass-components.css">
+    <link rel="stylesheet" href="/static/utilities.css">
     
     <!-- Three.js -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -34,21 +35,6 @@
             overflow: hidden;
             background: var(--bg-base);
         }
-        
-        /* Utility classes for theme toggle */
-        .theme-toggle-container { 
-            background: rgba(0, 0, 0, 0.15); 
-            border-radius: 8px;
-            padding: 4px;
-        }
-        .light .theme-toggle-container {
-            background: rgba(0, 0, 0, 0.08);
-        }
-        .bg-white\/20 { background: rgba(255, 255, 255, 0.2); }
-        .light .bg-white\/20 { background: rgba(0, 0, 0, 0.1); }
-        .rounded-lg { border-radius: 8px; }
-        .p-1 { padding: 4px; }
-        .gap-1 { gap: 4px; }
         
         #graph { 
             width: 100vw; 
@@ -605,7 +591,7 @@
         </div>
         
         <!-- Right: Theme Toggle -->
-        <div class="flex items-center gap-1 theme-toggle-container">
+        <div class="flex items-center gap-1 p-1 bg-black/20 rounded-lg">
             <button onclick="setTheme('light')" id="themeLightBtn" class="btn btn-icon btn-sm btn-ghost" aria-label="Light theme">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
             </button>
@@ -1498,13 +1484,13 @@ function updateThemeButtons(theme) {
     const systemBtn = document.getElementById('themeSystemBtn');
     const darkBtn = document.getElementById('themeDarkBtn');
     
-    // Remove active class from all
+    // Reset all buttons
     [lightBtn, systemBtn, darkBtn].forEach(btn => {
         btn.classList.remove('bg-white/20');
         btn.classList.add('btn-ghost');
     });
     
-    // Add active class to selected
+    // Highlight active button
     const activeBtn = theme === 'light' ? lightBtn : theme === 'system' ? systemBtn : darkBtn;
     activeBtn.classList.add('bg-white/20');
     activeBtn.classList.remove('btn-ghost');
