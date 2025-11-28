@@ -21,6 +21,54 @@
 - **🤖 MCP Integration**: Native Model Context Protocol server for Claude Desktop
 - **🔐 Privacy-First**: All embeddings generated locally, no external API calls
 
+## 📸 Screenshots
+
+### Dashboard - Browse View
+*Light and dark themes with automatic system detection*
+
+<p align="center">
+  <img src="docs/images/dashboard-browse-light.png" alt="Dashboard Browse - Light Mode" width="45%">
+  <img src="docs/images/dashboard-browse-dark.png" alt="Dashboard Browse - Dark Mode" width="45%">
+</p>
+
+### Timeline & Insights
+*Visualize memory patterns and discover connections*
+
+<p align="center">
+  <img src="docs/images/dashboard-timeline-dark.png" alt="Timeline View" width="45%">
+  <img src="docs/images/dashboard-insights-dark.png" alt="Insights View" width="45%">
+</p>
+
+### Semantic Search
+*Find memories by meaning, not just keywords*
+
+<p align="center">
+  <img src="docs/images/dashboard-semantic-search.png" alt="Semantic Search" width="70%">
+</p>
+
+### Knowledge Graph - 3D View
+*Interactive visualization with Three.js*
+
+<p align="center">
+  <img src="docs/images/graph-3d-dark.png" alt="3D Graph - Dark Mode" width="45%">
+  <img src="docs/images/graph-3d-light.png" alt="3D Graph - Light Mode" width="45%">
+</p>
+
+### Knowledge Graph - 2D View
+*Force-directed layout with D3.js and focus highlighting*
+
+<p align="center">
+  <img src="docs/images/graph-2d-light.png" alt="2D Graph - Light Mode" width="45%">
+  <img src="docs/images/graph-2d-dark.png" alt="2D Graph - Dark Mode" width="45%">
+</p>
+
+### Chrome Extension
+*Capture web content with the Liquid Glass popup*
+
+<p align="center">
+  <img src="docs/images/chrome-extension.png" alt="Chrome Extension" width="300">
+</p>
+
 ## 🖥️ Dashboard
 
 ### Apple Liquid Glass Design
