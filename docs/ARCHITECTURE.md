@@ -4,17 +4,48 @@
 
 ```mermaid
 flowchart TB
-    subgraph System[Longterm Memory System]
-        Claude[Claude Desktop] <--> MCP[MCP Server<br/>postgres-mcp]
-        MCP <--> DB[(PostgreSQL 17<br/>+ pgvector)]
-        
-        Ollama[Ollama<br/>nomic-embed] <--> BG[Background Services<br/>LaunchAgents]
-        BG --> DB
-        
-        BG --> Backups[Backups<br/>3 AM]
-        BG --> Embed[Embeddings<br/>4 AM]
+    subgraph Inputs[Data Sources]
+        Claude[Claude Desktop]
+        Browser[Chrome Extension]
     end
+    
+    subgraph Core[Core System]
+        MCP[MCP Server<br/>postgres-mcp]
+        NH[Native Host<br/>Python]
+        DB[(PostgreSQL 17<br/>+ pgvector)]
+        Dash[Dashboard<br/>:5555]
+    end
+    
+    subgraph Services[Background Services]
+        Ollama[Ollama<br/>nomic-embed]
+        BG[LaunchAgents]
+    end
+    
+    Claude <--> MCP
+    MCP <--> DB
+    
+    Browser <--> NH
+    NH <--> DB
+    
+    Dash <--> DB
+    Browser -.->|badge queries| Dash
+    
+    BG --> DB
+    Ollama <--> BG
 ```
+
+### Core Components
+
+| Component | Description |
+|-----------|-------------|
+| **Claude Desktop** | AI conversations with MCP integration |
+| **Chrome Extension** | Capture web content via context menu |
+| **MCP Server** | postgres-mcp for Claude ↔ database queries |
+| **Native Host** | Python bridge for extension → PostgreSQL |
+| **Dashboard** | Liquid Glass UI at localhost:5555 |
+| **PostgreSQL + pgvector** | Vector database with 768-dim embeddings |
+| **Ollama** | Local embedding generation (nomic-embed-text) |
+| **LaunchAgents** | Automated backups and embedding jobs |
 
 ## 📊 Database Schema
 
