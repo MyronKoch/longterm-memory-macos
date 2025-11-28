@@ -422,6 +422,6 @@ MIT License - see [LICENSE](LICENSE) for details.
 
 ---
 
-**Made with ❤️ in Louisville, KY for the AI-native workflow** 
+**Made in Louisville, KY, with ❤️ for the AI-native workflow** 
 
 **Stack**: PostgreSQL 17 • pgvector • Ollama • Flask • Vue 3 • Three.js • D3.js
