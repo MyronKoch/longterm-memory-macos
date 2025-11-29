@@ -18,7 +18,7 @@
 - **📦 Archive System**: Browse and manage archived memories with full search
 - **🔄 Cross-Mac Sync**: Bidirectional sync between multiple macOS systems via iCloud
 - **⚡ Real-time Updates**: PostgreSQL WAL monitoring for instant sync triggering
-- **🤖 MCP Integration**: Native Model Context Protocol server for Claude Desktop
+- **🤖 MCP Integration**: Native Model Context Protocol server for Claude Desktop and other compatible frameworks. 
 - **🔐 Privacy-First**: All embeddings generated locally, no external API calls
 
 ## 📸 Screenshots
