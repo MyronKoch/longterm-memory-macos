@@ -354,6 +354,18 @@ tail -f ~/Documents/GitHub/longterm-memory-macos/logs/db_sync.log
 tail -f ~/Documents/GitHub/longterm-memory-macos/logs/wake_sync.log
 ```
 
+### macOS Tahoe Compatibility
+
+On macOS Tahoe (15.x), the sync script uses Finder via osascript to write to iCloud Drive, bypassing TCC (Transparency, Consent, and Control) restrictions.
+
+**First run**: macOS will prompt for Finder automation permission. Click **Allow** to enable automatic sync.
+
+**Why osascript/Finder?** Direct `cp` commands to iCloud fail under TCC when run from launchd. Finder has native iCloud access and bypasses these restrictions.
+
+**Troubleshooting**: If you still see "Operation not permitted" errors:
+1. Check System Settings → Privacy & Security → Automation → Ensure your terminal has Finder access
+2. Optionally move the script to `~/.local/bin/` (outside the Documents folder)
+
 ### SQL Queries
 
 ```sql

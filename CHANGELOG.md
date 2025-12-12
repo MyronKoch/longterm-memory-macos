@@ -126,6 +126,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.2.1] - 2025-12-12
+
+### Fixed
+- **macOS Tahoe TCC bypass**: iCloud sync now uses Finder via osascript instead of direct `cp`
+  - Resolves "Operation not permitted" errors when launchd runs sync_databases.sh
+  - On first run, macOS will prompt for Finder automation permission - click Allow
+  - Tested working on both M1 and M3 Macs via launchd
+
+### Notes
+- If you still encounter TCC issues, you can optionally move the script to `~/.local/bin/` (outside Documents)
+- The plist files remain configured for the default Documents location
+
+---
+
 ## [Unreleased]
 
 ### Planned
