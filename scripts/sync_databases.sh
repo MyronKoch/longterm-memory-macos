@@ -23,17 +23,12 @@ YELLOW='\033[1;33m'
 RED='\033[0;31m'
 NC='\033[0m'
 
-# Function to copy file to iCloud using Finder (bypasses TCC restrictions)
+# Function to copy file to iCloud (silent - no Finder sounds)
 copy_to_icloud() {
     local source_file="$1"
-    local dest_dir="$2"
-    osascript -e "
-        tell application \"Finder\"
-            set sourceFile to POSIX file \"$source_file\"
-            set destFolder to POSIX file \"$dest_dir\"
-            duplicate sourceFile to folder destFolder with replacing
-        end tell
-    " > /dev/null 2>&1
+    local dest_file="$2"
+    # Use cp directly - silent operation, no Finder ping sounds
+    cp -f "$source_file" "$dest_file" 2>/dev/null
 }
 
 echo -e "${GREEN}🔄 Database Sync System${NC}"
@@ -128,11 +123,9 @@ if [ -f "$SYNC_METADATA" ]; then
     elif [[ "$LAST_MODIFIED" > "$REMOTE_MODIFIED" ]]; then
         echo -e "${YELLOW}⬆️  Local database is newer. Uploading...${NC}"
         
-        # Upload local export using Finder (bypasses TCC)
-        copy_to_icloud "$LOCAL_EXPORT" "$SYNC_DIR"
-        mv "$SYNC_DIR/longterm_memory_local_export.sql" "$REMOTE_EXPORT" 2>/dev/null || true
-        copy_to_icloud "$SYNC_METADATA.tmp" "$SYNC_DIR"
-        mv "$SYNC_DIR/sync_metadata.json.tmp" "$SYNC_METADATA" 2>/dev/null || true
+        # Upload local export (silent cp - no Finder sounds)
+        copy_to_icloud "$LOCAL_EXPORT" "$REMOTE_EXPORT"
+        copy_to_icloud "$SYNC_METADATA.tmp" "$SYNC_METADATA"
 
     else
         echo -e "${GREEN}✅ Databases are in sync!${NC}"
@@ -140,11 +133,9 @@ if [ -f "$SYNC_METADATA" ]; then
 else
     echo -e "${YELLOW}🆕 First sync - uploading local database...${NC}"
 
-    # Upload local export using Finder (bypasses TCC)
-    copy_to_icloud "$LOCAL_EXPORT" "$SYNC_DIR"
-    mv "$SYNC_DIR/longterm_memory_local_export.sql" "$REMOTE_EXPORT" 2>/dev/null || true
-    copy_to_icloud "$SYNC_METADATA.tmp" "$SYNC_DIR"
-    mv "$SYNC_DIR/sync_metadata.json.tmp" "$SYNC_METADATA" 2>/dev/null || true
+    # Upload local export (silent cp - no Finder sounds)
+    copy_to_icloud "$LOCAL_EXPORT" "$REMOTE_EXPORT"
+    copy_to_icloud "$SYNC_METADATA.tmp" "$SYNC_METADATA"
 fi
 
 # Cleanup
