@@ -1,0 +1,147 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  guards:
+    name: SQL guard regression suite
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with: { bun-version: latest }
+      - name: Install
+        working-directory: pg-memory-mcp
+        run: bun install
+      - name: Typecheck
+        working-directory: pg-memory-mcp
+        run: bunx tsc --noEmit
+      - name: Guard regression suite
+        working-directory: pg-memory-mcp
+        run: bun test src/guards.test.ts
+
+  schema:
+    name: Schema applies, and the FKs actually RESTRICT
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg17
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: longterm_memory_ci
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready --health-interval 5s
+          --health-timeout 5s --health-retries 10
+    env:
+      PGHOST: localhost
+      PGUSER: postgres
+      PGPASSWORD: postgres
+      PGDATABASE: longterm_memory_ci
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply schema from scratch
+        run: |
+          psql -v ON_ERROR_STOP=1 -c 'CREATE EXTENSION IF NOT EXISTS vector;'
+          psql -v ON_ERROR_STOP=1 -f sql/02_create_tables.sql
+          psql -v ON_ERROR_STOP=1 -f sql/03_create_views.sql
+          psql -v ON_ERROR_STOP=1 -f sql/04_extended_tables.sql
+
+      - name: Least-privilege role applies and cannot destroy
+        run: |
+          psql -v ON_ERROR_STOP=1 -f sql/06_create_mcp_role.sql
+          for priv in DELETE TRUNCATE; do
+            got=$(psql -tAc "SELECT has_table_privilege('ltm_mcp','public.observations','$priv');")
+            echo "ltm_mcp $priv on observations = $got"
+            [ "$got" = "f" ] || { echo "FAIL: ltm_mcp must not hold $priv"; exit 1; }
+          done
+
+      # A memory store must never silently destroy content. This asserts on the
+      # CONSTRAINT NAME using a parent with NO other referencing rows: Postgres stops
+      # at the FIRST violated constraint, so a naive "it errored" check passes
+      # identically with the constraint absent, and certifies itself.
+      - name: Deleting an entity is REFUSED by the right constraint
+        run: |
+          psql -v ON_ERROR_STOP=1 -c "INSERT INTO entities (name) VALUES ('ci-clean');"
+          psql -v ON_ERROR_STOP=1 -c "INSERT INTO observations (entity_id, observation_text, observation_index)
+                                      SELECT id,'must survive',1 FROM entities WHERE name='ci-clean';"
+          err=$(psql -c "DELETE FROM entities WHERE name='ci-clean';" 2>&1 || true)
+          echo "$err"
+          echo "$err" | grep -q 'observations_entity_id_fkey' \
+            || { echo "FAIL: expected observations_entity_id_fkey to refuse the delete"; exit 1; }
+          n=$(psql -tAc "SELECT COUNT(*) FROM observations;")
+          [ "$n" = "1" ] || { echo "FAIL: observation did not survive (count=$n)"; exit 1; }
+
+      - name: No ON DELETE CASCADE anywhere in the schema
+        run: |
+          bad=$(psql -tAc "SELECT string_agg(conrelid::regclass::text||'.'||conname,', ')
+                           FROM pg_constraint WHERE contype='f' AND confdeltype='c';")
+          echo "cascading FKs: ${bad:-none}"
+          [ -z "$bad" ] || { echo "FAIL: CASCADE found - a delete could silently destroy memories"; exit 1; }
+
+  installer:
+    name: Installer entry point and confirmation logic
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: bash -n install.sh
+
+      # The advertised `curl | bash` was broken for a year because BASH_SOURCE[0]
+      # is UNSET under a pipe, so this guard was false and main() never ran - the
+      # installer printed its banner and exited 0, looking like success.
+      # Tested by evaluating the real line from the real file under each invocation
+      # mode, rather than running the installer (which would brew install Postgres,
+      # and could block forever if the runner happens to have a readable /dev/tty).
+      - name: The entry-point guard is true when piped and when executed
+        run: |
+          guard=$(grep -m1 '^if \[\[.*BASH_SOURCE' install.sh)
+          echo "guard line: $guard"
+          echo "$guard" | grep -q ':-\$0' \
+            || { echo "FAIL: guard lacks the \${BASH_SOURCE[0]:-\$0} fallback, so a piped install cannot run"; exit 1; }
+
+          printf '%s\n  echo RAN\nfi\n' "$guard" > /tmp/guard_probe.sh
+          piped=$(cat /tmp/guard_probe.sh | bash)
+          asfile=$(bash /tmp/guard_probe.sh)
+          sourced=$(bash -c 'source /tmp/guard_probe.sh')
+          echo "piped=[$piped] as-file=[$asfile] sourced=[$sourced]"
+          [ "$piped"  = "RAN" ] || { echo "FAIL: guard is false under a pipe"; exit 1; }
+          [ "$asfile" = "RAN" ] || { echo "FAIL: guard is false when executed"; exit 1; }
+          [ -z "$sourced" ]     || { echo "FAIL: guard is TRUE when sourced - main would run on source"; exit 1; }
+
+      - name: Confirmation refuses rather than proceeding when there is no terminal
+        run: |
+          sed -n '/LONGTERM_MEMORY_ASSUME_YES/,/^    fi$/p' install.sh > /tmp/conf.sh
+          grep -q 'ASSUME_YES' /tmp/conf.sh \
+            || { echo "FAIL: could not extract the confirmation block"; exit 1; }
+          { echo 'RED=""; NC=""'; cat /tmp/conf.sh;
+            echo 'if [[ $REPLY =~ ^[Yy]$ ]]; then echo DECISION=PROCEED; else echo DECISION=CANCELLED; fi'; } > /tmp/conf_run.sh
+          out=$(LONGTERM_MEMORY_ASSUME_YES=1 bash /tmp/conf_run.sh </dev/null 2>&1)
+          echo "$out" | grep -q 'DECISION=PROCEED' \
+            || { echo "FAIL: explicit opt-in did not proceed"; echo "$out"; exit 1; }
+          out=$(bash /tmp/conf_run.sh </dev/null 2>&1 || true)
+          echo "$out" | grep -q 'DECISION=PROCEED' \
+            && { echo "FAIL: proceeded with no terminal and no opt-in"; exit 1; }
+          echo ok
+
+  docs:
+    name: Docs do not advertise what the code refuses
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: No unrestricted MCP access in any doc
+        run: |
+          if grep -rniE 'access-mode[^a-z]+unrestricted|--access-mode unrestricted' \
+               README.md docs/ config/ AGENT.md 2>/dev/null; then
+            echo "FAIL: a doc still instructs users to run the MCP unrestricted"; exit 1
+          fi
+          echo ok
+      - name: No dangling references to removed scripts
+        run: |
+          if grep -rniE 'sync_databases|database_watcher|memory_sync_daemon' \
+               README.md docs/ scripts/ AGENT.md CLAUDE.md 2>/dev/null; then
+            echo "FAIL: doc references a script that no longer exists"; exit 1
+          fi
+          echo ok
