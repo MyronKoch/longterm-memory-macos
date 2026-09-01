@@ -35,7 +35,7 @@ EOF
 echo -e "${NC}"
 
 echo -e "${GREEN}🚀 Starting ${SYSTEM_NAME} installation...${NC}"
-echo "Prerequisites: macOS 12+, Homebrew, iCloud Drive, PostgreSQL 17, pgvector, fswatch, jq, Ollama"
+echo "Prerequisites: macOS 12+, Homebrew, PostgreSQL 17, pgvector, Ollama"
 echo ""
 
 # Check if command exists
@@ -81,18 +81,6 @@ install_postgresql() {
         brew install pgvector
     fi
 
-    if brew list fswatch &>/dev/null; then
-        echo "   ✅ fswatch already installed"
-    else
-        brew install fswatch
-    fi
-
-    if brew list jq &>/dev/null; then
-        echo "   ✅ jq already installed"
-    else
-        brew install jq
-    fi
-    
     # Start PostgreSQL
     brew services start postgresql@${POSTGRES_VERSION}
     sleep 3

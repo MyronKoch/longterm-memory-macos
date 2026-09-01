@@ -5,6 +5,12 @@ All notable changes to the Longterm Memory System will be documented in this fil
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.0.0] - 2026-09-01
+
+### Removed
+- Removed the whole-database cross-machine sync subsystem, including its watcher, daemon, and LaunchAgent template. Dump replacement could silently overwrite newer memories with an older snapshot, so multiple machines must now connect to one shared PostgreSQL instance.
+- Per-machine backups remain available and are unaffected.
+
 ## [2.0.0] - 2025-11-25
 
 ### Added - Web Dashboard
@@ -123,20 +129,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Backup System**: Automated daily backups in custom and SQL formats
 - **Embedding Pipeline**: Automatic embedding generation for new observations
 - **Background Services**: LaunchAgent-based automation for hands-free operation
-
----
-
-## [2.2.1] - 2025-12-12
-
-### Fixed
-- **macOS Tahoe TCC bypass**: iCloud sync now uses Finder via osascript instead of direct `cp`
-  - Resolves "Operation not permitted" errors when launchd runs sync_databases.sh
-  - On first run, macOS will prompt for Finder automation permission - click Allow
-  - Tested working on both M1 and M3 Macs via launchd
-
-### Notes
-- If you still encounter TCC issues, you can optionally move the script to `~/.local/bin/` (outside Documents)
-- The plist files remain configured for the default Documents location
 
 ---
 

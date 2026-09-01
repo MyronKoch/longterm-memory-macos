@@ -2,7 +2,7 @@
 
 **Enterprise-grade semantic memory system for LLM applications on macOS**
 
-**🍎 macOS-only | 🤖 MCP-driven | 🔒 100% Local & Private | ☁️ iCloud Sync Between Your Macs**
+**🍎 macOS-only | 🤖 MCP-driven | 🔒 100% Local & Private**
 
 [![Version](https://img.shields.io/badge/version-2.2.0-blue.svg)](https://github.com/MyronKoch/longterm-memory-macos)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-17-blue.svg)](https://www.postgresql.org/)
@@ -16,8 +16,6 @@
 - **🧠 Semantic Search**: Local AI-powered embeddings using Ollama + nomic-embed-text (LM Studio fallback)
 - **🔌 Browser Extension**: Capture web content with context menu and memory badges
 - **📦 Archive System**: Browse and manage archived memories with full search
-- **🔄 Cross-Mac Sync**: Bidirectional sync between multiple macOS systems via iCloud
-- **⚡ Real-time Updates**: PostgreSQL WAL monitoring for instant sync triggering
 - **🤖 MCP Integration**: Native Model Context Protocol server for Claude Desktop and other compatible frameworks. 
 - **🔐 Privacy-First**: All embeddings generated locally, no external API calls
 
@@ -187,29 +185,11 @@ flowchart TB
     Ollama <--> BG
 ```
 
-### Multi-Mac Sync
+### Multiple machines
 
-```mermaid
-flowchart LR
-    subgraph Mac1[Mac #1]
-        DB1[(PostgreSQL)]
-        D1[Dashboard]
-        DB1 --- D1
-    end
-    
-    subgraph Mac2[Mac #2]
-        DB2[(PostgreSQL)]
-        D2[Dashboard]
-        DB2 --- D2
-    end
-    
-    subgraph Sync[iCloud Drive]
-        T[Transport]
-    end
-    
-    DB1 <--> T
-    T <--> DB2
-```
+This system is single-machine by design right now. To use one memory store from several machines, point every installation at one PostgreSQL instance by setting `LONGTERM_MEMORY_HOST` and `LONGTERM_MEMORY_PORT` instead of replicating database dumps.
+
+Backups created by `scripts/backup_longterm_memory.sh` remain per-machine and are unaffected. A previous whole-database dump-replacement feature was removed because it could silently overwrite newer memories with an older snapshot.
 
 ### Core Components
 
@@ -220,7 +200,6 @@ flowchart LR
 | **Design System** | Custom CSS | Apple-inspired Liquid Glass components |
 | **Browser Extension** | Chrome APIs | Content capture with native messaging |
 | **MCP Server** | postgres-mcp | Claude Desktop integration |
-| **Sync Engine** | PostgreSQL | Bidirectional cross-Mac sync |
 | **Embedding Pipeline** | Ollama + LM Studio | Local vector generation (768-dim) with fallback |
 
 ## 🔌 Browser Extension
@@ -294,9 +273,6 @@ open http://localhost:5555/graph            # Knowledge Graph
 # Health check
 ./scripts/health_check.sh
 
-# Manual sync between Macs
-./scripts/sync_databases.sh
-
 # Generate embeddings for new observations
 python3 scripts/ollama_embeddings.py
 
@@ -306,7 +282,7 @@ tail -f ~/Documents/GitHub/longterm-memory-macos/logs/*.log
 
 ## ⏰ Background Services
 
-The system uses macOS LaunchAgents for scheduled tasks and `sleepwatcher` for wake-triggered sync.
+The system uses macOS LaunchAgents for scheduled embedding and backup tasks.
 
 ### Scheduled Jobs
 
@@ -314,8 +290,6 @@ The system uses macOS LaunchAgents for scheduled tasks and `sleepwatcher` for wa
 |-----|----------|---------|
 | **Embeddings** | 4:00 AM, 4:00 PM | Generate vectors for new observations |
 | **Backup** | 4:20 AM, 4:20 PM | Local database backup with 7-day retention |
-| **Database Sync** | 8 AM, 12 PM, 6 PM, 11 PM | Bidirectional M1↔M3 sync via iCloud |
-| **Wake Sync** | On wake from sleep | Sync database when Mac wakes |
 
 ### LaunchAgent Files
 
@@ -325,52 +299,13 @@ Located in `~/Library/LaunchAgents/`:
 |------|-------------|
 | `com.longtermmemory.embeddings.plist` | Ollama embedding generation |
 | `com.longtermmemory.backup.plist` | Database backup |
-| `com.longtermmemory.dbsync.plist` | Cross-device database sync |
-| `homebrew.mxcl.sleepwatcher` | Wake/sleep event handler |
-
-### Wake-on-Sync Setup
-
-Uses [sleepwatcher](https://www.bernhard-baehr.de/) to trigger database sync when your Mac wakes:
-
-```bash
-# Install sleepwatcher (one-time)
-brew install sleepwatcher
-brew services start sleepwatcher
-
-# Wake/sleep scripts (created automatically by installer)
-~/.wakeup    # Runs sync_databases.sh on wake
-~/.sleep     # Logs sleep events
-```
 
 ### Managing Services
 
 ```bash
 # View all longterm-memory services
 launchctl list | grep longterm
-
-# Reload a service after editing its plist
-launchctl unload ~/Library/LaunchAgents/com.longtermmemory.dbsync.plist
-launchctl load ~/Library/LaunchAgents/com.longtermmemory.dbsync.plist
-
-# Check sleepwatcher status
-brew services info sleepwatcher
-
-# View sync logs
-tail -f ~/Documents/GitHub/longterm-memory-macos/logs/db_sync.log
-tail -f ~/Documents/GitHub/longterm-memory-macos/logs/wake_sync.log
 ```
-
-### macOS Tahoe Compatibility
-
-On macOS Tahoe (15.x), the sync script uses Finder via osascript to write to iCloud Drive, bypassing TCC (Transparency, Consent, and Control) restrictions.
-
-**First run**: macOS will prompt for Finder automation permission. Click **Allow** to enable automatic sync.
-
-**Why osascript/Finder?** Direct `cp` commands to iCloud fail under TCC when run from launchd. Finder has native iCloud access and bypasses these restrictions.
-
-**Troubleshooting**: If you still see "Operation not permitted" errors:
-1. Check System Settings → Privacy & Security → Automation → Ensure your terminal has Finder access
-2. Optionally move the script to `~/.local/bin/` (outside the Documents folder)
 
 ### SQL Queries
 
@@ -456,7 +391,6 @@ python3 scripts/ollama_embeddings.py
 | Dashboard Load | <500ms |
 | Graph Render (3D) | ~2s for 500 nodes |
 | Graph Render (2D) | ~1s for 500 nodes |
-| Cross-Mac Sync | ~10s end-to-end |
 | Memory Usage | ~200MB |
 
 ## 🗺️ Roadmap
