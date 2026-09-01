@@ -47,6 +47,12 @@ flowchart TB
 | **Ollama** | Local embedding generation (nomic-embed-text) |
 | **LaunchAgents** | Automated backups and embedding jobs |
 
+### Multiple machines
+
+This system is single-machine by design right now. To use one memory store from several machines, configure each installation to connect to one PostgreSQL instance with `LONGTERM_MEMORY_HOST` and `LONGTERM_MEMORY_PORT` instead of replicating database dumps.
+
+Backups created by `scripts/backup_longterm_memory.sh` remain per-machine and are unaffected. A previous whole-database dump-replacement feature was removed because it could silently overwrite newer memories with an older snapshot.
+
 ## 📊 Database Schema
 
 ### Entities Table

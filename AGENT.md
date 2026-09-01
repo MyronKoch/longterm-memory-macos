@@ -16,7 +16,6 @@ You are installing a local semantic memory system for LLM applications on macOS.
 - Flask dashboard at localhost:5555
 - Chrome browser extension
 - Background services via LaunchAgents
-- (Optional) Cross-Mac sync via iCloud
 
 ## Pre-Flight Checks
 
@@ -171,45 +170,15 @@ done
 # Load the agents
 launchctl load ~/Library/LaunchAgents/com.longtermmemory.embeddings.plist
 launchctl load ~/Library/LaunchAgents/com.longtermmemory.backup.plist
-launchctl load ~/Library/LaunchAgents/com.longtermmemory.dbsync.plist
 ```
 
 **Verify:** 
 ```bash
 launchctl list | grep longterm
 ```
-Should show 3 services with exit code 0 or -
+Should show 2 services with exit code 0 or -
 
-### Step 9: Install Sleepwatcher (Optional - for wake sync)
-
-```bash
-brew install sleepwatcher
-brew services start sleepwatcher
-
-# Create wake script
-cat > ~/.wakeup << 'EOF'
-#!/bin/bash
-LOG="$HOME/Documents/GitHub/longterm-memory-macos/logs/wake_sync.log"
-SCRIPT="$HOME/Documents/GitHub/longterm-memory-macos/scripts/sync_databases.sh"
-echo "[$(date)] Mac woke from sleep - starting database sync" >> "$LOG"
-sleep 5
-"$SCRIPT" >> "$LOG" 2>&1
-echo "[$(date)] Wake sync complete" >> "$LOG"
-EOF
-
-# Create sleep script
-cat > ~/.sleep << 'EOF'
-#!/bin/bash
-LOG="$HOME/Documents/GitHub/longterm-memory-macos/logs/wake_sync.log"
-echo "[$(date)] Mac going to sleep" >> "$LOG"
-EOF
-
-chmod +x ~/.wakeup ~/.sleep
-```
-
-**Verify:** `brew services info sleepwatcher` shows `Running: true`
-
-### Step 10: Configure MCP Client (Claude Desktop)
+### Step 9: Configure MCP Client (Claude Desktop)
 
 Create or update Claude Desktop config:
 
@@ -306,9 +275,6 @@ OLLAMA_HOST=http://localhost:11434 ollama pull nomic-embed-text
 cat /tmp/longterm_memory_backup.log
 cat ~/Documents/GitHub/longterm-memory-macos/logs/*.log
 
-# Reload agent
-launchctl unload ~/Library/LaunchAgents/com.longtermmemory.dbsync.plist
-launchctl load ~/Library/LaunchAgents/com.longtermmemory.dbsync.plist
 ```
 
 ## Success Criteria
@@ -318,7 +284,7 @@ Installation is complete when:
 - [ ] Database `longterm_memory` exists with all tables
 - [ ] Ollama running with `nomic-embed-text` model
 - [ ] Dashboard accessible at http://localhost:5555
-- [ ] 3 LaunchAgents loaded (embeddings, backup, dbsync)
+- [ ] 2 LaunchAgents loaded (embeddings and backup)
 - [ ] MCP client can connect to the database
 
 **Total installation time: ~10-15 minutes**

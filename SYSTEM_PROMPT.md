@@ -14,7 +14,7 @@ You have a PostgreSQL memory system with **semantic search capabilities** via th
 - **Embeddings**: Ollama `nomic-embed-text` (primary) with LM Studio fallback
 - **Dashboard**: `http://localhost:5555` — visual exploration, search, knowledge graph
 - **Browser Extension**: Chrome extension for capturing web content with native messaging
-- **Cross-Device Sync**: Bidirectional sync via iCloud + pg_dump (optional)
+- **Multiple machines**: point every client at ONE PostgreSQL instance (`LONGTERM_MEMORY_HOST`). There is no replication.
 
 ## Core Behavior
 

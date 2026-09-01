@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**Longterm Memory System** - Enterprise-grade semantic memory system for LLM applications on macOS. This is a local-first, privacy-focused system that provides bidirectional database sync between Macs via iCloud, semantic search with local embeddings, and MCP integration for Claude Desktop.
+**Longterm Memory System** - Enterprise-grade semantic memory system for LLM applications on macOS. This is a local-first, privacy-focused system that provides semantic search with local embeddings and MCP integration for Claude Desktop.
 
 **Key Technologies**: PostgreSQL 17, pgvector 0.8.0, Ollama (nomic-embed-text), Model Context Protocol (MCP)
 
@@ -42,8 +42,6 @@ launchctl list | grep longtermmemory
 # Restore from backup
 ./scripts/restore_memory.sh <backup_file>
 
-# Manual sync between machines
-./scripts/sync_databases.sh
 ```
 
 ### Embeddings
@@ -76,36 +74,19 @@ tail -f /opt/homebrew/var/log/postgresql@17.log
 
 ## Architecture
 
-### 6 Core Components
+### 3 Core Components
 
-1. **Database Sync Engine** (`scripts/sync_databases.sh`)
-   - Bidirectional PostgreSQL synchronization between Macs
-   - Uses iCloud Drive as transport: `~/Library/Mobile Documents/com~apple~CloudDocs/ClaudeMemory/db_sync/`
-   - Conflict resolution via timestamp comparison
-   - Auto-detects hostname and handles metadata
-
-2. **Real-time Change Detection** (`scripts/database_watcher.sh`)
-   - Monitors PostgreSQL WAL files via fswatch
-   - Triggers sync on database changes
-   - Logs to `/tmp/database_watcher.log`
-
-3. **Handoff File Monitoring** (`scripts/handoff_watcher.sh`)
-   - Watches for file changes with batching
-   - Part of the sync orchestration system
-
-4. **Master Orchestration Daemon** (`scripts/memory_sync_daemon.sh`)
-   - Coordinates all sync operations
-   - Runs database sync hourly
-   - Manages change-based handoff sync
-
-5. **LaunchAgent Automation** (`config/launchagents/`)
+1. **LaunchAgent Automation** (`config/launchagents/`)
    - `com.longtermmemory.backup.plist` - Daily backups at 3:00 AM
    - `com.longtermmemory.embeddings.plist` - Daily embedding generation at 4:00 AM
 
-6. **Supporting Infrastructure**
+2. **Supporting Infrastructure**
    - Backups: `backup_longterm_memory.sh`, `restore_memory.sh`
    - Health checks: `health_check.sh`
    - Embeddings: `ollama_embeddings.py`
+
+3. **MCP Integration**
+   - Connects supported AI clients to PostgreSQL
 
 ### Database Schema
 
@@ -168,12 +149,6 @@ Scripts accept these environment variables (with defaults):
 - Batch size: 10 observations per commit
 - Max chunk size: 800 characters with 50-char overlap
 
-### Sync Mechanism
-- Transport: iCloud Drive (requires "Files & Folders" access)
-- Format: PostgreSQL pg_dump SQL with --clean --if-exists
-- Metadata: JSON file with hostname, timestamps, counts
-- Strategy: Last-write-wins based on max(created_at) across tables
-
 ### Background Services
 - Managed via macOS LaunchAgents
 - Backup retention: 7 days
@@ -183,8 +158,6 @@ Scripts accept these environment variables (with defaults):
 ## Common Issues & Solutions
 
 **Database name mismatch**: Scripts default to `longterm_memory` but README mentions `claude_memory` in places. The installer creates `longterm_memory`. Set `LONGTERM_MEMORY_DB` environment variable if using different name.
-
-**iCloud sync not working**: Grant Claude Desktop or Terminal "Files & Folders" access in System Settings > Privacy & Security. Verify path exists: `~/Library/Mobile Documents/com~apple~CloudDocs/ClaudeMemory/`
 
 **Ollama not responding**: Check with `curl http://localhost:11434/api/tags`. Restart with `brew services restart ollama`. Verify model with `ollama list | grep nomic-embed-text`.
 
@@ -198,15 +171,10 @@ Scripts accept these environment variables (with defaults):
 .
 ├── install.sh                    # Complete system installer
 ├── scripts/
-│   ├── sync_databases.sh         # Bidirectional sync via iCloud
-│   ├── database_watcher.sh       # WAL file monitoring
-│   ├── memory_sync_daemon.sh     # Master orchestrator
 │   ├── backup_longterm_memory.sh # Manual backup
 │   ├── restore_memory.sh         # Restore from backup
 │   ├── health_check.sh           # System health verification
-│   ├── ollama_embeddings.py      # Embedding generation & search
-│   ├── handoff_watcher.sh        # File monitoring
-│   └── sync_handoffs.sh          # Handoff sync
+│   └── ollama_embeddings.py      # Embedding generation & search
 ├── config/
 │   ├── claude_desktop_config.json # MCP configuration example
 │   └── env.example               # Environment variable template
