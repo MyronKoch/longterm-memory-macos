@@ -371,7 +371,12 @@ main() {
     echo ""
 }
 
-# Check if running as installer
-if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+# Run main when executed, but not when sourced.
+# BASH_SOURCE[0] is UNSET when the script is piped to bash (curl ... | bash), so a bare
+# `[[ "${BASH_SOURCE[0]}" == "${0}" ]]` is false there and main never runs - which is why
+# the advertised one-command install silently did nothing. Falling back to $0 makes the
+# piped case compare "bash" to "bash" and run, while a sourced file still compares its
+# own path to the shell's $0 and correctly does not.
+if [[ "${BASH_SOURCE[0]:-$0}" == "${0}" ]]; then
     main "$@"
 fi
