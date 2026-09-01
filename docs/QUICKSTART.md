@@ -26,7 +26,15 @@ The installer will:
 
 ## ⚙️ Post-Installation Setup
 
-### 1. Configure Claude Desktop (2 minutes)
+### 1. Create the MCP Database Role
+
+```bash
+psql -d longterm_memory -f sql/06_create_mcp_role.sql
+```
+
+This creates a read-mostly role so an AI assistant cannot delete or drop anything.
+
+### 2. Configure Claude Desktop (2 minutes)
 
 Open Claude Desktop → Settings → Developer → Edit config:
 
@@ -37,19 +45,16 @@ Open Claude Desktop → Settings → Developer → Edit config:
       "command": "uvx",
       "args": [
         "postgres-mcp",
-        "--access-mode", "unrestricted",
-        "postgresql://YOUR_USERNAME@localhost:5432/longterm_memory"
+        "postgresql://ltm_mcp@localhost:5432/longterm_memory"
       ]
     }
   }
 }
 ```
 
-Replace `YOUR_USERNAME` with your macOS username.
-
 Restart Claude Desktop.
 
-### 2. Verify Installation
+### 3. Verify Installation
 
 ```bash
 cd longterm-memory
