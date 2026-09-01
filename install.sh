@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Longterm Memory System - Complete Installer
-# Enterprise-grade semantic memory system for LLM applications
+# Local semantic memory system for LLM applications on macOS
 # Version: 1.0.0
 
 set -e
@@ -31,7 +31,7 @@ echo -e "${BLUE}${BOLD}"
 cat << "EOF"
 ╔══════════════════════════════════════════════════════════════╗
 ║              🧠 LONGTERM MEMORY SYSTEM v1.0                  ║
-║         Enterprise Semantic Memory for LLM Apps              ║
+║           Local Semantic Memory for LLM Apps                 ║
 ╚══════════════════════════════════════════════════════════════╝
 EOF
 echo -e "${NC}"

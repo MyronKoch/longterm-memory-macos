@@ -1,13 +1,17 @@
 # 🧠 Longterm Memory System
 
-**Enterprise-grade semantic memory system for LLM applications on macOS**
+**A local semantic memory system for LLM applications on macOS**
 
-**🍎 macOS-only | 🤖 MCP-driven | 🔒 100% Local & Private**
+**🍎 macOS-only | 🤖 MCP-driven | 🔒 Local embeddings and PostgreSQL storage**
 
-[![Version](https://img.shields.io/badge/version-2.2.0-blue.svg)](https://github.com/MyronKoch/longterm-memory-macos)
+[![Version](https://img.shields.io/badge/version-3.0.0-blue.svg)](https://github.com/MyronKoch/longterm-memory-macos)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-17-blue.svg)](https://www.postgresql.org/)
 [![pgvector](https://img.shields.io/badge/pgvector-0.8.0-green.svg)](https://github.com/pgvector/pgvector)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+
+## 🔐 Security
+
+The MCP connection should use the least-privilege `ltm_mcp` database role. The role can read, add, and update memories but cannot delete, truncate, or change the schema. See [SECURITY.md](SECURITY.md) for the security model, verification commands, and the limits of the SQL guards.
 
 ## 🌟 Features
 
@@ -17,7 +21,7 @@
 - **🔌 Browser Extension**: Capture web content with context menu and memory badges
 - **📦 Archive System**: Browse and manage archived memories with full search
 - **🤖 MCP Integration**: Native Model Context Protocol server for Claude Desktop and other compatible frameworks. 
-- **🔐 Privacy-First**: All embeddings generated locally, no external API calls
+- **🔐 Privacy-First**: Embeddings are generated locally without external API calls, and memory data stays in the PostgreSQL instance you configure
 
 ## 📸 Screenshots
 
@@ -127,8 +131,6 @@ curl -fsSL https://raw.githubusercontent.com/MyronKoch/longterm-memory-macos/mai
 3. **Database schema** with entities, observations, and archive tables
 4. **Background services** via macOS LaunchAgents
 5. **Browser extension** files (manual Chrome setup required)
-
-**Total install time: ~5 minutes**
 
 ### Manual Installation
 
@@ -247,7 +249,7 @@ Connect to any MCP-compatible AI assistant:
 }
 ```
 
-**Supported Clients**: Claude Desktop, Claude Code, Cursor, Continue.dev, Windsurf, Cline, Roo-Cline, Google Gemini CLI
+The server uses the Model Context Protocol. Client setup varies, so consult your client's MCP configuration documentation.
 
 📚 **See [docs/MULTI_APP_SETUP.md](docs/MULTI_APP_SETUP.md) for Claude Code and Cursor configuration.**
 
@@ -288,8 +290,8 @@ The system uses macOS LaunchAgents for scheduled embedding and backup tasks.
 
 | Job | Schedule | Purpose |
 |-----|----------|---------|
-| **Embeddings** | 4:00 AM, 4:00 PM | Generate vectors for new observations |
-| **Backup** | 4:20 AM, 4:20 PM | Local database backup with 7-day retention |
+| **Embeddings** | 4:00 AM daily | Generate vectors for new observations |
+| **Backup** | 3:00 AM daily | Local database backup with 7-day retention |
 
 ### LaunchAgent Files
 
@@ -382,16 +384,6 @@ ollama pull nomic-embed-text
 # Manual embedding generation
 python3 scripts/ollama_embeddings.py
 ```
-
-## 📊 Performance
-
-| Metric | Value |
-|--------|-------|
-| Semantic Search | ~50ms per query |
-| Dashboard Load | <500ms |
-| Graph Render (3D) | ~2s for 500 nodes |
-| Graph Render (2D) | ~1s for 500 nodes |
-| Memory Usage | ~200MB |
 
 ## 🗺️ Roadmap
 
