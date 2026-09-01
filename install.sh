@@ -319,8 +319,23 @@ main() {
     echo "   • MCP server integration for Claude"
     echo ""
     
-    read -p "Continue with installation? (y/N): " -n 1 -r
-    echo ""
+    if [[ "${LONGTERM_MEMORY_ASSUME_YES:-}" == "1" ]]; then
+        REPLY="y"
+    elif [[ -t 0 ]]; then
+        read -p "Continue with installation? (y/N): " -n 1 -r
+        echo ""
+    elif [[ -c /dev/tty ]]; then
+        if ! read -p "Continue with installation? (y/N): " -n 1 -r </dev/tty; then
+            echo -e "${RED}Unable to read confirmation from /dev/tty.${NC}" >&2
+            echo "Download and run install.sh directly, or set LONGTERM_MEMORY_ASSUME_YES=1 to confirm non-interactively." >&2
+            exit 1
+        fi
+        echo ""
+    else
+        echo -e "${RED}Unable to prompt for installation confirmation.${NC}" >&2
+        echo "Download and run install.sh directly, or set LONGTERM_MEMORY_ASSUME_YES=1 to confirm non-interactively." >&2
+        exit 1
+    fi
     
     if [[ ! $REPLY =~ ^[Yy]$ ]]; then
         echo -e "${YELLOW}Installation cancelled${NC}"

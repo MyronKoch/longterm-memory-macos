@@ -230,7 +230,7 @@ else
       "command": "uvx",
       "args": ["postgres-mcp"],
       "env": {
-        "POSTGRES_CONNECTION_STRING": "postgresql://$(whoami)@localhost:5432/longterm_memory"
+        "POSTGRES_CONNECTION_STRING": "postgresql://ltm_mcp@localhost:5432/longterm_memory"
       }
     }
   }

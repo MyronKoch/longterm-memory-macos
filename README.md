@@ -116,6 +116,12 @@ python3 app.py
 curl -fsSL https://raw.githubusercontent.com/MyronKoch/longterm-memory-macos/main/install.sh | bash
 ```
 
+The installer prompts for confirmation. For an explicitly confirmed non-interactive install:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/MyronKoch/longterm-memory-macos/main/install.sh | LONGTERM_MEMORY_ASSUME_YES=1 bash
+```
+
 ### What Gets Installed
 
 1. **PostgreSQL 17** with pgvector 0.8.0 extension
@@ -254,7 +260,7 @@ Connect to any MCP-compatible AI assistant:
       "command": "uvx",
       "args": ["postgres-mcp"],
       "env": {
-        "POSTGRES_CONNECTION_STRING": "postgresql://YOUR_USERNAME@localhost:5432/longterm_memory",
+        "POSTGRES_CONNECTION_STRING": "postgresql://ltm_mcp@localhost:5432/longterm_memory",
         "SYSTEM_CONTEXT": "PostgreSQL memory for user-specific data. Query at conversation start for context."
       }
     }

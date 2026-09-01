@@ -40,7 +40,7 @@ flowchart TB
 |-----------|-------------|
 | **Claude Desktop** | AI conversations with MCP integration |
 | **Chrome Extension** | Capture web content via context menu |
-| **MCP Server** | postgres-mcp for Claude ↔ database queries |
+| **MCP Server** | postgres-mcp for least-privilege Claude ↔ database queries |
 | **Native Host** | Python bridge for extension → PostgreSQL |
 | **Dashboard** | Liquid Glass UI at localhost:5555 |
 | **PostgreSQL + pgvector** | Vector database with 768-dim embeddings |
