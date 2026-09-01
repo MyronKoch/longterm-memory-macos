@@ -1,9 +1,21 @@
 #!/usr/bin/env node
 
+// These guards are a deny-list intended to reduce blast radius.
+// The real security boundary is the least-privilege database role created by
+// sql/06_create_mcp_role.sql. Three bypasses were found in these guards in
+// ten minutes - assume a fourth.
+
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import pg from "pg";
 import { z } from "zod";
+import {
+  hasMultipleStatements,
+  isDDLBlocked,
+  isRowWritingStatement,
+  isUnqualifiedWrite,
+  normalizeSql,
+} from "./guards.js";
 
 const { Pool } = pg;
 
@@ -36,15 +48,41 @@ server.tool(
     params: paramsSchema,
   },
   async ({ sql, params }) => {
-    // Validate it's a SELECT
-    const trimmed = sql.trim().toLowerCase();
-    if (!trimmed.startsWith("select") && !trimmed.startsWith("with")) {
+    if (hasMultipleStatements(sql)) {
       return {
         content: [
           {
             type: "text",
             text: JSON.stringify({
-              error: "query tool only accepts SELECT or WITH statements. Use 'mutate' for INSERT/UPDATE/DELETE or 'sql' for other operations.",
+              error: "Multi-statement queries are not allowed.",
+            }),
+          },
+        ],
+      };
+    }
+
+    const normalized = normalizeSql(sql);
+
+    if (isRowWritingStatement(normalized)) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify({
+              error: "query is read-only. Use 'mutate' for INSERT/UPDATE/DELETE, including data-modifying CTEs.",
+            }),
+          },
+        ],
+      };
+    }
+
+    if (!/^(select|with)\b/.test(normalized)) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify({
+              error: "query only accepts SELECT or WITH statements. Use 'sql' for other operations.",
             }),
           },
         ],
@@ -81,17 +119,41 @@ server.tool(
     params: paramsSchema,
   },
   async ({ sql, params }) => {
-    const trimmed = sql.trim().toLowerCase();
-    const allowed = ["insert", "update", "delete"];
-    const isAllowed = allowed.some((op) => trimmed.startsWith(op));
-
-    if (!isAllowed) {
+    if (hasMultipleStatements(sql)) {
       return {
         content: [
           {
             type: "text",
             text: JSON.stringify({
-              error: "mutate tool only accepts INSERT, UPDATE, or DELETE. Use 'query' for SELECT or 'sql' for other operations.",
+              error: "Multi-statement queries are not allowed.",
+            }),
+          },
+        ],
+      };
+    }
+
+    const normalized = normalizeSql(sql);
+
+    if (!isRowWritingStatement(normalized)) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify({
+              error: "mutate only accepts INSERT, UPDATE, DELETE, or a data-modifying WITH (a CTE that writes). Use 'query' for SELECT or 'sql' for schema operations.",
+            }),
+          },
+        ],
+      };
+    }
+
+    if (isUnqualifiedWrite(sql)) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify({
+              error: "DELETE/UPDATE without a WHERE clause is blocked (it would affect every row). Add a WHERE clause, or use psql directly for an intentional full-table operation.",
             }),
           },
         ],
@@ -122,12 +184,38 @@ server.tool(
 // Tool 3: sql - Raw SQL for anything else
 server.tool(
   "sql",
-  "Execute arbitrary SQL. Use for CREATE, ALTER, DROP, transactions, or complex operations. Use with caution.",
+  "Execute a single SQL statement for permitted schema and complex operations. Destructive DDL such as DROP, TRUNCATE, and ALTER ROLE is blocked.",
   {
     sql: z.string().describe("SQL statement to execute"),
     params: paramsSchema,
   },
   async ({ sql, params }) => {
+    if (isDDLBlocked(sql)) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify({
+              error: "Destructive DDL is blocked. Use psql directly for DROP/TRUNCATE/ALTER ROLE operations.",
+            }),
+          },
+        ],
+      };
+    }
+
+    if (hasMultipleStatements(sql)) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify({
+              error: "Multi-statement queries are not allowed.",
+            }),
+          },
+        ],
+      };
+    }
+
     try {
       const result = await pool.query(sql, (params as unknown[]) || []);
       return {
