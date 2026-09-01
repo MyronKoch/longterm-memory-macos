@@ -22,10 +22,6 @@ fi
 PYTHON_PATH=$(which python3)
 echo "Using Python: $PYTHON_PATH"
 
-# Update Python shebang in host script
-echo "📝 Updating Python path in native host script..."
-sed -i '' "1s|.*|#!$PYTHON_PATH|" "$NATIVE_HOST_DIR/longterm_memory_host.py"
-
 # Create native messaging host directories
 echo "📁 Creating native messaging host directories..."
 mkdir -p "$CHROME_NATIVE_DIR/longterm-memory"
@@ -34,6 +30,7 @@ mkdir -p "$CHROMIUM_NATIVE_DIR/longterm-memory"
 # Copy native host script to Chrome directory (required for Chrome security)
 echo "📋 Installing native messaging host for Chrome..."
 cp "$NATIVE_HOST_DIR/longterm_memory_host.py" "$CHROME_NATIVE_DIR/longterm-memory/host.py"
+sed -i '' "1s|.*|#!$PYTHON_PATH|" "$CHROME_NATIVE_DIR/longterm-memory/host.py"
 chmod +x "$CHROME_NATIVE_DIR/longterm-memory/host.py"
 
 # Create manifest for Chrome
@@ -52,6 +49,7 @@ EOF
 # Copy native host script to Chromium directory
 echo "📋 Installing native messaging host for Chromium browsers..."
 cp "$NATIVE_HOST_DIR/longterm_memory_host.py" "$CHROMIUM_NATIVE_DIR/longterm-memory/host.py"
+sed -i '' "1s|.*|#!$PYTHON_PATH|" "$CHROMIUM_NATIVE_DIR/longterm-memory/host.py"
 chmod +x "$CHROMIUM_NATIVE_DIR/longterm-memory/host.py"
 
 # Create manifest for Chromium
@@ -85,14 +83,10 @@ echo "   • Replace EXTENSION_ID_PLACEHOLDER with your actual ID"
 echo ""
 echo "3. Restart Chrome to activate native messaging"
 echo ""
-echo "🎯 The extension works in all Chromium browsers:"
+echo "🎯 The extension is configured automatically for:"
 echo "   • Google Chrome"
 echo "   • Chromium"
-echo "   • Microsoft Edge"
-echo "   • Brave"
-echo "   • Arc"
-echo "   • Perplexity Comet"
-echo "   • GPT Atlas"
 echo ""
-echo "For other Chromium browsers, copy the manifest to their NativeMessagingHosts directory."
+echo "Microsoft Edge, Brave, Arc, Perplexity Comet, and GPT Atlas require you to copy"
+echo "the manifest manually to that browser's NativeMessagingHosts directory."
 echo ""

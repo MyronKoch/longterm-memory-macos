@@ -11,3 +11,4 @@ coverage/
 .specstory/
 .claude/
 .cursor*
+browser-extension/native-host/com.longtermmemory.host.json

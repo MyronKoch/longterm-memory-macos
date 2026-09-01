@@ -4,15 +4,17 @@ Automated Insight Finder - Discovers patterns in your memory
 """
 import subprocess
 import json
+import os
 import sys
 from datetime import datetime, timedelta
 
 def search_memory(query):
     """Search memory and return results"""
     try:
+        script_dir = os.path.dirname(os.path.abspath(__file__))
         result = subprocess.run([
-            'python3', 'ollama_embeddings.py', 'search', query
-        ], capture_output=True, text=True, cwd='$HOME/Documents/GitHub/claude-memory-system/scripts')
+            sys.executable, 'ollama_embeddings.py', 'search', query
+        ], capture_output=True, text=True, cwd=script_dir)
         return result.stdout
     except Exception as e:
         return f"Error: {e}"

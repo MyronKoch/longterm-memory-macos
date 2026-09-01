@@ -6,10 +6,9 @@ WITH AUTOMATIC CHUNKING for long observations
 """
 
 import json
-import subprocess
+import urllib.request
 import psycopg2
 from psycopg2.extras import RealDictCursor
-import numpy as np
 from typing import List, Dict, Optional, Tuple
 import sys
 import time
@@ -30,8 +29,12 @@ DB_CONFIG = {
 MAX_CHUNK_SIZE = 800  # Characters per chunk
 CHUNK_OVERLAP = 50    # Overlap between chunks for context
 
-def get_ollama_embedding(text: str, model: str = "nomic-embed-text:f32") -> Optional[List[float]]:
+def get_ollama_embedding(text: str, model: Optional[str] = None) -> Optional[List[float]]:
     """Get embedding vector from Ollama, with LM Studio fallback"""
+    model = model or os.getenv('OLLAMA_MODEL', 'nomic-embed-text')
+    ollama_host = os.getenv('OLLAMA_HOST', 'http://localhost:11434').rstrip('/')
+    failures = []
+
     # Clean text - remove newlines and excessive spaces
     text = ' '.join(text.split())
     
@@ -40,54 +43,47 @@ def get_ollama_embedding(text: str, model: str = "nomic-embed-text:f32") -> Opti
         payload = json.dumps({
             "model": model,
             "prompt": text
-        })
-        
-        result = subprocess.run(
-            ['curl', '-s', 'http://localhost:11434/api/embeddings',
-             '-d', payload],
-            capture_output=True,
-            text=True,
-            check=True,
-            timeout=15
+        }).encode('utf-8')
+        request = urllib.request.Request(
+            f'{ollama_host}/api/embeddings',
+            data=payload,
+            headers={'Content-Type': 'application/json'}
         )
-        
-        embedding_data = json.loads(result.stdout)
+        with urllib.request.urlopen(request, timeout=15) as response:
+            embedding_data = json.loads(response.read().decode('utf-8'))
         
         if 'error' not in embedding_data and embedding_data.get('embedding'):
             return embedding_data['embedding']
+        failures.append(f"Ollama returned no embedding: {embedding_data.get('error', 'unknown response')}")
             
     except Exception as e:
-        pass  # Fall through to LM Studio
+        failures.append(f"Ollama failed: {e}")
     
     # Try LM Studio as fallback (OpenAI-compatible API)
     try:
         payload = json.dumps({
             "model": "nomic-embed-text-v1.5",
             "input": text
-        })
-        
-        result = subprocess.run(
-            ['curl', '-s', 'http://localhost:1234/v1/embeddings',
-             '-H', 'Content-Type: application/json',
-             '-d', payload],
-            capture_output=True,
-            text=True,
-            check=True,
-            timeout=15
+        }).encode('utf-8')
+        request = urllib.request.Request(
+            'http://localhost:1234/v1/embeddings',
+            data=payload,
+            headers={'Content-Type': 'application/json'}
         )
-        
-        embedding_data = json.loads(result.stdout)
+        with urllib.request.urlopen(request, timeout=15) as response:
+            embedding_data = json.loads(response.read().decode('utf-8'))
         
         # OpenAI format: {"data": [{"embedding": [...]}]}
         if 'data' in embedding_data and embedding_data['data']:
             embedding = embedding_data['data'][0].get('embedding', [])
             if embedding:
                 return embedding
-                
+        failures.append("LM Studio returned no embedding")
+
     except Exception as e:
-        print(f"  ⚠️  Both Ollama and LM Studio failed: {e}")
-        return None
+        failures.append(f"LM Studio failed: {e}")
     
+    print(f"  ⚠️  Embedding failed after trying Ollama and LM Studio: {'; '.join(failures)}")
     return None
 
 def smart_chunk_text(text: str, max_size: int = MAX_CHUNK_SIZE) -> List[str]:

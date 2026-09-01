@@ -23,6 +23,8 @@ PGVECTOR_VERSION="0.8.0"
 OLLAMA_MODEL="nomic-embed-text"
 DB_NAME="longterm_memory"
 DB_USER="$(whoami)"
+BREW_PREFIX=""
+PYTHON_PATH=""
 
 # Logo
 echo -e "${BLUE}${BOLD}"
@@ -61,6 +63,15 @@ check_system() {
     else
         echo "   ✅ Homebrew found"
     fi
+
+    BREW_PREFIX="$(brew --prefix 2>/dev/null || true)"
+    if [ -z "$BREW_PREFIX" ]; then
+        if [ "$ARCH" = "arm64" ]; then
+            BREW_PREFIX="/opt/homebrew"
+        else
+            BREW_PREFIX="/usr/local"
+        fi
+    fi
     
     echo ""
 }
@@ -87,9 +98,9 @@ install_postgresql() {
     
     # Add to PATH
     if ! grep -q "postgresql@${POSTGRES_VERSION}" ~/.zshrc 2>/dev/null; then
-        echo 'export PATH="/opt/homebrew/opt/postgresql@17/bin:$PATH"' >> ~/.zshrc
+        echo "export PATH=\"$BREW_PREFIX/opt/postgresql@${POSTGRES_VERSION}/bin:\$PATH\"" >> ~/.zshrc
     fi
-    export PATH="/opt/homebrew/opt/postgresql@17/bin:$PATH"
+    export PATH="$BREW_PREFIX/opt/postgresql@${POSTGRES_VERSION}/bin:$PATH"
     
     echo "   ✅ PostgreSQL ${POSTGRES_VERSION} installed and running"
     echo ""
@@ -136,8 +147,13 @@ create_database() {
     
     # Create tables
     if [ -f "$INSTALL_DIR/sql/02_create_tables.sql" ]; then
-        psql -U "$DB_USER" -d "$DB_NAME" -f "$INSTALL_DIR/sql/02_create_tables.sql" &>/dev/null
-        echo "   ✅ Tables created (entities, observations, observations_archive)"
+        if psql -U "$DB_USER" -d "$DB_NAME" -f "$INSTALL_DIR/sql/02_create_tables.sql" &>/dev/null; then
+            echo "   ✅ Tables created (entities, observations, observations_archive)"
+        else
+            echo -e "${RED}❌ Failed to create database tables.${NC}" >&2
+            echo "   Run manually: psql -U \"$DB_USER\" -d \"$DB_NAME\" -f \"$INSTALL_DIR/sql/02_create_tables.sql\"" >&2
+            exit 1
+        fi
     fi
 
     # Create unified view
@@ -201,7 +217,7 @@ EOF
     <string>com.longtermmemory.embeddings</string>
     <key>ProgramArguments</key>
     <array>
-        <string>/opt/homebrew/bin/python3</string>
+        <string>$PYTHON_PATH</string>
         <string>$INSTALL_DIR/scripts/ollama_embeddings.py</string>
         <string>embed</string>
     </array>
@@ -221,7 +237,7 @@ EOF
     <key>EnvironmentVariables</key>
     <dict>
         <key>PATH</key>
-        <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
+        <string>$BREW_PREFIX/bin:/usr/local/bin:/usr/bin:/bin</string>
         <key>LONGTERM_MEMORY_DB</key>
         <string>$DB_NAME</string>
         <key>LONGTERM_MEMORY_USER</key>
@@ -278,10 +294,21 @@ install_python_deps() {
         exit 1
     fi
     
-    # Install psycopg2
-    pip3 install psycopg2-binary --break-system-packages --quiet 2>/dev/null || true
-    
-    echo "   ✅ Python dependencies installed"
+    PYTHON_PATH="$(command -v python3)"
+
+    if pip3 install psycopg2-binary --break-system-packages --quiet 2>/dev/null; then
+        echo "   ✅ psycopg2-binary installed"
+    else
+        echo -e "${YELLOW}⚠️  Failed to install psycopg2-binary.${NC}" >&2
+        echo "   Install it manually: pip3 install psycopg2-binary --break-system-packages" >&2
+    fi
+
+    if pip3 install -r "$INSTALL_DIR/dashboard/requirements.txt" --break-system-packages --quiet 2>/dev/null; then
+        echo "   ✅ Dashboard dependencies installed"
+    else
+        echo -e "${YELLOW}⚠️  Failed to install dashboard dependencies.${NC}" >&2
+        echo "   Install them manually: pip3 install -r \"$INSTALL_DIR/dashboard/requirements.txt\" --break-system-packages" >&2
+    fi
     echo ""
 }
 

@@ -50,11 +50,6 @@ def index():
     """Serve the main dashboard HTML."""
     return send_from_directory('static', 'index.html')
 
-@app.route('/legacy')
-def index_legacy():
-    """Serve the legacy blue dashboard (archived)."""
-    return send_from_directory('static', 'index-legacy.html')
-
 @app.route('/graph')
 def graph():
     """Serve the knowledge graph visualization."""
