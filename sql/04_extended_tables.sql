@@ -48,7 +48,7 @@ CREATE INDEX IF NOT EXISTS idx_insights_text ON insights USING gin(to_tsvector('
 -- Project updates table - track project progress
 CREATE TABLE IF NOT EXISTS project_updates (
     update_id SERIAL PRIMARY KEY,
-    project_id INTEGER REFERENCES projects(project_id) ON DELETE CASCADE,
+    project_id INTEGER REFERENCES projects(project_id) ON DELETE RESTRICT,
     update_text TEXT NOT NULL,
     update_type VARCHAR(50),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
@@ -60,7 +60,7 @@ CREATE INDEX IF NOT EXISTS idx_project_updates_created_at ON project_updates(cre
 -- Project milestones table - track major achievements
 CREATE TABLE IF NOT EXISTS project_milestones (
     milestone_id SERIAL PRIMARY KEY,
-    project_id INTEGER REFERENCES projects(project_id) ON DELETE CASCADE,
+    project_id INTEGER REFERENCES projects(project_id) ON DELETE RESTRICT,
     title VARCHAR(255) NOT NULL,
     description TEXT,
     achieved_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
@@ -73,7 +73,7 @@ CREATE INDEX IF NOT EXISTS idx_project_milestones_achieved_at ON project_milesto
 -- Session contexts table - store rich session metadata
 CREATE TABLE IF NOT EXISTS session_contexts (
     context_id SERIAL PRIMARY KEY,
-    session_id INTEGER REFERENCES sessions(session_id) ON DELETE CASCADE,
+    session_id INTEGER REFERENCES sessions(session_id) ON DELETE RESTRICT,
     context_key VARCHAR(100) NOT NULL,
     context_value TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
