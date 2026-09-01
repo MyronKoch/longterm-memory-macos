@@ -24,11 +24,9 @@ echo ""
 # Check PostgreSQL
 echo -n "📊 PostgreSQL service: "
 if brew services list | grep -q "postgresql@17.*started"; then
-    echo -e "${GREEN}✅ Running${NC}"
+    echo -e "${GREEN}✅ Homebrew service running${NC}"
 else
-    echo -e "${RED}❌ Not running${NC}"
-    echo "   Run: brew services start postgresql@17"
-    exit 1
+    echo -e "${YELLOW}ℹ️  Not managed by Homebrew as postgresql@17${NC}"
 fi
 
 # Check database connection
@@ -55,6 +53,7 @@ fi
 # Check tables exist
 echo -n "📋 Core tables: "
 TABLES_CHECK=$(psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -t -c "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public' AND table_name IN ('entities', 'observations', 'observations_archive');" 2>/dev/null | tr -d ' ')
+TABLES_CHECK="${TABLES_CHECK:-0}"
 if [ "$TABLES_CHECK" -eq 3 ]; then
     echo -e "${GREEN}✅ All present${NC}"
 else
@@ -114,6 +113,11 @@ ENTITY_COUNT=$(psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -t -
 OBS_COUNT=$(psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -t -c "SELECT COUNT(*) FROM observations;" 2>/dev/null | tr -d ' ')
 EMBEDDED_COUNT=$(psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -t -c "SELECT COUNT(*) FROM observations WHERE embedding IS NOT NULL;" 2>/dev/null | tr -d ' ')
 ARCHIVED_COUNT=$(psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -t -c "SELECT COUNT(*) FROM observations_archive;" 2>/dev/null | tr -d ' ')
+
+ENTITY_COUNT="${ENTITY_COUNT:-0}"
+OBS_COUNT="${OBS_COUNT:-0}"
+EMBEDDED_COUNT="${EMBEDDED_COUNT:-0}"
+ARCHIVED_COUNT="${ARCHIVED_COUNT:-0}"
 
 echo "   Entities: $ENTITY_COUNT"
 echo "   Observations: $OBS_COUNT"

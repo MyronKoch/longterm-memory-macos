@@ -13,7 +13,7 @@ DB_NAME="${LONGTERM_MEMORY_DB:-longterm_memory}"
 DB_USER="${LONGTERM_MEMORY_USER:-$(whoami)}"
 DB_HOST="${LONGTERM_MEMORY_HOST:-localhost}"
 DB_PORT="${LONGTERM_MEMORY_PORT:-5432}"
-BACKUP_DIR="${LONGTERM_MEMORY_BACKUP_DIR:-$HOME/longterm_memory_backups}"
+BACKUP_DIR="${LONGTERM_MEMORY_BACKUP_DIR:-$HOME/Documents/longterm-memory-backups}"
 
 # Function to show usage
 show_usage() {
@@ -22,7 +22,7 @@ show_usage() {
     echo "Available backups:"
     ls -la "$BACKUP_DIR"/*.backup 2>/dev/null || echo "No backup files found"
     echo ""
-    echo "Example: $0 claude_memory_backup_20250723_140000.sql.backup"
+    echo "Example: $0 longterm_memory_backup_20250723_140000.backup"
 }
 
 # Check if backup file provided
@@ -45,8 +45,8 @@ else
     exit 1
 fi
 
-echo "🔄 Starting Claude Memory restore from: $FULL_PATH"
-echo "⚠️  WARNING: This will OVERWRITE the existing claude_memory database!"
+echo "🔄 Starting Longterm Memory restore from: $FULL_PATH"
+echo "⚠️  WARNING: This will OVERWRITE the existing $DB_NAME database!"
 read -p "Are you sure you want to continue? (yes/no): " confirm
 
 if [ "$confirm" != "yes" ]; then
@@ -55,6 +55,7 @@ if [ "$confirm" != "yes" ]; then
 fi
 
 echo "Creating backup of current database before restore..."
+mkdir -p "$BACKUP_DIR"
 CURRENT_DATE=$(date +%Y%m%d_%H%M%S)
 pg_dump \
     -h "$DB_HOST" \
