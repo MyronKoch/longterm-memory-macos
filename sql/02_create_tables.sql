@@ -19,7 +19,11 @@ CREATE INDEX IF NOT EXISTS idx_entities_type ON entities(entity_type);
 -- Observations table - stores individual observations with embeddings
 CREATE TABLE IF NOT EXISTS observations (
     id SERIAL PRIMARY KEY,
-    entity_id INTEGER REFERENCES entities(id) ON DELETE CASCADE,
+    -- ON DELETE RESTRICT, NEVER CASCADE. With CASCADE, deleting one entity silently
+    -- destroys every observation attached to it - the database performing the exact
+    -- data loss this store exists to prevent, with no warning and no recovery path.
+    -- RESTRICT makes you detach the observations first, deliberately.
+    entity_id INTEGER REFERENCES entities(id) ON DELETE RESTRICT,
     observation_text TEXT NOT NULL,
     observation_index INTEGER NOT NULL,
     observation_type VARCHAR(100) DEFAULT 'note',
